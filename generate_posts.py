@@ -7,14 +7,16 @@ import anthropic
 import json
 import re
 import os
+import sys
 from datetime import datetime, timezone, timedelta
 
 JST = timezone(timedelta(hours=9))
 
-def get_week_id():
+def get_week_id(extra=False):
     now = datetime.now(JST)
     year, week, _ = now.isocalendar()
-    return f"{year}-W{week:02d}"
+    base = f"{year}-W{week:02d}"
+    return f"{base}-extra" if extra else base
 
 def get_date_str():
     return datetime.now(JST).strftime('%Y-%m-%d')
@@ -24,7 +26,7 @@ def get_existing_batch_ids(content):
 
 def build_prompt(week_id, date_str):
     return f"""あなたはクリスタルインセンス（Crystal Incense）のThreads投稿専門家です。
-今週（{week_id} / {date_str}）の新しい投稿案を15個生成してください。
+今週（{week_id} / {date_str}）の新しい投稿案を40個生成してください。
 
 【ブランド情報】
 - 香司 柴垣。国産・無添加のお香。
@@ -63,7 +65,7 @@ def build_prompt(week_id, date_str):
     "tag": "#タグ名（1つのみ）",
     "confidence": 85
   }},
-  ...（15件、idは{week_id}-001〜{week_id}-015）
+  ...（40件、idは{week_id}-001〜{week_id}-040）
 ]"""
 
 def generate_posts(week_id, date_str):
@@ -76,7 +78,7 @@ def generate_posts(week_id, date_str):
 
     message = client.messages.create(
         model="claude-haiku-4-5-20251001",
-        max_tokens=8000,
+        max_tokens=16000,
         messages=[{"role": "user", "content": build_prompt(week_id, date_str)}]
     )
 
@@ -129,7 +131,8 @@ def update_html(posts, week_id, date_str):
     return True
 
 def main():
-    week_id = get_week_id()
+    extra = '--extra' in sys.argv
+    week_id = get_week_id(extra)
     date_str = get_date_str()
     print(f"=== 週次投稿更新 {week_id} ({date_str}) ===")
 

@@ -543,12 +543,13 @@ function renderReview() {
     sh.textContent = '';
     el.innerHTML = `<div class="empty">
       <div class="empty-icon">📭</div>
-      <p>レビュー待ちの投稿はありません<br>上のバナーか「生成」タブから追加できます</p>
+      <p>レビュー待ちの投稿はありません<br>上のバナーから今週のバッチを読み込んでください</p>
     </div>`;
     return;
   }
-  sh.textContent = `レビュー待ち ${reviewQueue.length}件`;
-  el.innerHTML = reviewQueue.map(p => `
+  sh.textContent = `レビュー待ち ${reviewQueue.length}件（バズ確度順）`;
+  const sorted = [...reviewQueue].sort((a, b) => (b.confidence || 0) - (a.confidence || 0));
+  el.innerHTML = sorted.map(p => `
     <div class="card" id="card-${p.id}">
       <div class="card-meta">
         <span class="chip">${esc(p.pattern)}</span>
@@ -840,6 +841,7 @@ function hardReload() {
   showToast('最新版を取得中...');
   setTimeout(() => window.location.reload(true), 500);
 }
+
 
 // ---- Init ----
 checkNewBatches();
