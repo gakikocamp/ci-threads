@@ -1,0 +1,853 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="CI Posts">
+  <title>CI Threads</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    :root {
+      --primary: #6b8e7f;
+      --primary-light: #e8f0ec;
+      --accent: #c4956a;
+      --bg: #f5f4f0;
+      --surface: #ffffff;
+      --text: #1a1a1a;
+      --muted: #6b6b6b;
+      --border: #e5e5e5;
+      --success: #4caf50;
+      --danger: #ef5350;
+      --warn: #ff9800;
+      --shadow: 0 2px 16px rgba(0,0,0,0.07);
+    }
+    html, body { height: 100%; background: var(--bg); color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', sans-serif;
+      overflow: hidden; }
+    #app { display: flex; flex-direction: column; height: 100dvh; max-width: 480px; margin: 0 auto; }
+
+    /* Header */
+    .header {
+      padding: 14px 20px 12px;
+      padding-top: calc(14px + env(safe-area-inset-top));
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .header-title { font-size: 17px; font-weight: 700; color: var(--primary); letter-spacing: -0.3px; }
+    .header-sub { font-size: 11px; color: var(--muted); margin-top: 1px; }
+    .header-week { font-size: 11px; color: var(--accent); font-weight: 600;
+      background: #fff3e0; padding: 3px 9px; border-radius: 12px; }
+
+    /* Content */
+    .content { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+    .view { display: none; padding: 16px; }
+    .view.active { display: block; }
+
+    /* Tab bar */
+    .tab-bar {
+      display: flex; background: var(--surface);
+      border-top: 1px solid var(--border);
+      padding-bottom: env(safe-area-inset-bottom);
+    }
+    .tab-btn {
+      flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px;
+      padding: 10px 0; border: none; background: none; cursor: pointer;
+      color: var(--muted); font-size: 10px; font-family: inherit;
+    }
+    .tab-btn.active { color: var(--primary); }
+    .tab-icon { font-size: 21px; position: relative; display: inline-block; }
+    .badge {
+      position: absolute; top: -3px; right: -8px;
+      background: var(--accent); color: white;
+      font-size: 9px; font-weight: 700; min-width: 15px; height: 15px;
+      border-radius: 8px; display: flex; align-items: center; justify-content: center;
+      padding: 0 3px;
+    }
+
+    /* Section header */
+    .section-header {
+      font-size: 11px; font-weight: 700; color: var(--muted);
+      text-transform: uppercase; letter-spacing: 0.8px;
+      margin-bottom: 10px; margin-top: 4px;
+    }
+
+    /* New batch banner */
+    .batch-banner {
+      background: linear-gradient(135deg, var(--primary), #4a7a6b);
+      color: white; border-radius: 14px; padding: 16px 18px;
+      margin-bottom: 14px; display: flex; align-items: center; gap: 12px;
+    }
+    .batch-banner-icon { font-size: 28px; }
+    .batch-banner-text h3 { font-size: 15px; font-weight: 700; margin-bottom: 3px; }
+    .batch-banner-text p { font-size: 12px; opacity: 0.85; line-height: 1.4; }
+    .btn-load-batch {
+      margin-top: 10px; width: 100%; padding: 10px; background: rgba(255,255,255,0.2);
+      color: white; border: 1px solid rgba(255,255,255,0.4); border-radius: 10px;
+      font-size: 14px; font-weight: 600; font-family: inherit; cursor: pointer;
+    }
+
+    /* Review cards */
+    .card {
+      background: var(--surface); border-radius: 18px; padding: 20px;
+      margin-bottom: 14px; box-shadow: var(--shadow); border: 1px solid var(--border);
+      transition: transform 0.28s ease, opacity 0.28s ease;
+    }
+    .card-meta { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+    .chip {
+      font-size: 10px; font-weight: 700; padding: 3px 9px; border-radius: 20px;
+      background: var(--primary-light); color: var(--primary);
+    }
+    .chip-confidence { background: #fff3e0; color: var(--accent); }
+    .card-body {
+      font-size: 15px; line-height: 1.8; color: var(--text);
+      white-space: pre-wrap; word-break: break-word;
+    }
+    .card-reply {
+      margin-top: 12px; padding: 10px 14px;
+      background: var(--bg); border-radius: 10px; border-left: 3px solid var(--primary);
+    }
+    .reply-label {
+      font-size: 9px; font-weight: 700; color: var(--muted);
+      text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 4px;
+    }
+    .reply-text { font-size: 13px; color: var(--muted); line-height: 1.65; white-space: pre-wrap; }
+    .card-tag { margin-top: 9px; font-size: 12px; color: var(--accent); font-weight: 500; }
+    .card-actions { display: flex; gap: 10px; margin-top: 16px; }
+    .btn { flex: 1; padding: 13px; border-radius: 12px; border: none;
+      font-size: 15px; font-family: inherit; font-weight: 600; cursor: pointer; }
+    .btn:active { opacity: 0.82; transform: scale(0.98); }
+    .btn-approve { background: var(--success); color: white; }
+    .btn-skip { background: var(--bg); color: var(--muted); border: 1px solid var(--border); }
+    .btn-skip:active { background: #fde; }
+
+    /* Stock cards */
+    .stock-card {
+      background: var(--surface); border-radius: 16px; padding: 17px;
+      margin-bottom: 12px; box-shadow: var(--shadow); border: 1px solid var(--border);
+    }
+    .stock-meta { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; }
+    .posted-chip { background: #e3f2fd; color: #1976d2; }
+    .stock-body {
+      font-size: 14px; line-height: 1.75; color: var(--text);
+      white-space: pre-wrap; word-break: break-word; margin-bottom: 10px;
+    }
+    .stock-reply {
+      padding: 9px 12px; background: var(--bg); border-radius: 9px;
+      border-left: 2px solid var(--primary); margin-bottom: 12px;
+    }
+    .stock-actions { display: flex; gap: 7px; flex-wrap: wrap; }
+    .btn-sm {
+      padding: 9px 14px; border-radius: 10px; border: none;
+      font-size: 13px; font-family: inherit; font-weight: 600; cursor: pointer;
+    }
+    .btn-copy-main { background: var(--primary); color: white; flex: 1; }
+    .btn-copy-main.copied { background: var(--success); }
+    .btn-copy-reply { background: var(--primary-light); color: var(--primary); }
+    .btn-posted { background: #e3f2fd; color: #1976d2; }
+    .btn-del { background: none; color: var(--muted); border: 1px solid var(--border); }
+
+    /* Performance tracker */
+    .perf-row {
+      display: flex; gap: 6px; margin-top: 8px;
+    }
+    .perf-btn {
+      flex: 1; padding: 7px 4px; border-radius: 8px; border: 1px solid var(--border);
+      font-size: 12px; font-family: inherit; cursor: pointer; background: var(--bg);
+      text-align: center;
+    }
+    .perf-btn.active-buzz { background: #fff3cd; border-color: #ff9800; }
+    .perf-btn.active-ok { background: #e8f5e9; border-color: #4caf50; }
+    .perf-btn.active-miss { background: #fce4ec; border-color: #e91e63; }
+
+    /* History view */
+    .history-card {
+      background: var(--surface); border-radius: 14px; padding: 15px;
+      margin-bottom: 10px; box-shadow: var(--shadow); border: 1px solid var(--border);
+    }
+    .history-body { font-size: 13px; color: var(--text); white-space: pre-wrap;
+      word-break: break-word; line-height: 1.65; margin-bottom: 8px; }
+    .history-meta { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .result-pill {
+      font-size: 11px; font-weight: 700; padding: 2px 9px; border-radius: 10px;
+    }
+    .result-buzz { background: #fff3cd; color: #e65100; }
+    .result-ok { background: #e8f5e9; color: #2e7d32; }
+    .result-miss { background: #fce4ec; color: #880e4f; }
+
+    /* Generate view */
+    .gen-card { background: var(--surface); border-radius: 16px; padding: 20px;
+      margin-bottom: 14px; box-shadow: var(--shadow); }
+    .gen-card h3 { font-size: 15px; font-weight: 700; margin-bottom: 6px; }
+    .gen-card p { font-size: 13px; color: var(--muted); line-height: 1.6; margin-bottom: 14px; }
+    .btn-gen-main {
+      width: 100%; padding: 15px; background: var(--primary); color: white;
+      border: none; border-radius: 13px; font-size: 16px; font-weight: 700;
+      font-family: inherit; cursor: pointer;
+    }
+    .btn-gen-main:disabled { opacity: 0.5; cursor: not-allowed; }
+    .input-label { font-size: 12px; font-weight: 600; color: var(--muted); margin-bottom: 7px; display: block; }
+    .text-input {
+      width: 100%; padding: 12px 14px; border: 1px solid var(--border);
+      border-radius: 10px; font-size: 14px; font-family: inherit;
+      background: var(--bg); color: var(--text); outline: none;
+    }
+    .text-input:focus { border-color: var(--primary); }
+    .btn-save-key {
+      width: 100%; margin-top: 10px; padding: 12px; background: var(--primary-light);
+      color: var(--primary); border: none; border-radius: 10px;
+      font-size: 14px; font-weight: 600; font-family: inherit; cursor: pointer;
+    }
+    .gen-log { font-size: 12px; color: var(--muted); line-height: 1.7; min-height: 40px; }
+
+    /* Empty state */
+    .empty { text-align: center; padding: 56px 20px; }
+    .empty-icon { font-size: 48px; margin-bottom: 12px; }
+    .empty p { font-size: 14px; color: var(--muted); line-height: 1.7; }
+
+    /* Loading */
+    .spinner {
+      width: 36px; height: 36px; border: 3px solid var(--border);
+      border-top-color: var(--primary); border-radius: 50%;
+      animation: spin 0.75s linear infinite; margin: 0 auto 14px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Toast */
+    .toast {
+      position: fixed; bottom: calc(76px + env(safe-area-inset-bottom));
+      left: 50%; transform: translateX(-50%) translateY(16px);
+      background: #1a1a1a; color: white; padding: 10px 20px;
+      border-radius: 22px; font-size: 13px; opacity: 0;
+      transition: opacity 0.2s, transform 0.2s; z-index: 999; white-space: nowrap;
+    }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+    /* Separator */
+    .sep { border: none; border-top: 1px solid var(--border); margin: 16px 0; }
+  </style>
+</head>
+<body>
+<div id="app">
+  <div class="header">
+    <div>
+      <div class="header-title">CI Threads</div>
+      <div class="header-sub">クリスタルインセンス 投稿ストック</div>
+    </div>
+    <div class="header-week" id="header-week"></div>
+  </div>
+
+  <div class="content">
+    <!-- レビュー -->
+    <div id="view-review" class="view active">
+      <div id="batch-banner-area"></div>
+      <div class="section-header" id="review-section-header"></div>
+      <div id="review-list"></div>
+    </div>
+
+    <!-- ストック -->
+    <div id="view-stock" class="view">
+      <div class="section-header" id="stock-section-header"></div>
+      <div id="stock-list"></div>
+    </div>
+
+    <!-- 実績 -->
+    <div id="view-history" class="view">
+      <div class="section-header">投稿済み・反応記録</div>
+      <div id="history-list"></div>
+    </div>
+
+    <!-- 生成 -->
+    <div id="view-generate" class="view">
+      <div class="gen-card">
+        <h3>✨ 投稿を追加生成</h3>
+        <p>Claude APIで今すぐ新しい投稿を生成します。週次更新とは別に、追加で欲しい時に使ってください。</p>
+        <button class="btn-gen-main" id="btn-gen" onclick="generatePosts()">30投稿を生成する</button>
+        <div style="margin-top:12px;" id="gen-log" class="gen-log"></div>
+      </div>
+
+      <div class="gen-card">
+        <h3>🔑 Claude API Key</h3>
+        <label class="input-label">APIキー（Anthropic Console から取得）</label>
+        <input type="password" class="text-input" id="api-key-input" placeholder="sk-ant-..." />
+        <p style="font-size:11px;color:var(--muted);margin-top:6px;line-height:1.5;">
+          端末のlocalStorageのみに保存。外部送信されません。
+        </p>
+        <button class="btn-save-key" onclick="saveApiKey()">保存する</button>
+      </div>
+
+      <div class="gen-card">
+        <h3>📊 週次更新について</h3>
+        <p>毎週、Claudeが最新のThreadsトレンド＋クリスタルインセンスのバズ傾向を分析して投稿案を追加します。アプリを開くと自動的に新しいバッチが「レビュー」に追加されます。</p>
+        <div style="font-size:12px;color:var(--muted);">
+          最終更新: <span id="last-batch-date">—</span><br>
+          累計生成: <span id="total-generated">0</span>投稿 ／
+          承認済: <span id="total-approved">0</span>投稿 ／
+          投稿済: <span id="total-posted">0</span>投稿
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="tab-bar">
+    <button class="tab-btn active" onclick="switchTab('review',this)">
+      <div class="tab-icon">📥<span class="badge" id="b-review" style="display:none"></span></div>
+      <span>レビュー</span>
+    </button>
+    <button class="tab-btn" onclick="switchTab('stock',this)">
+      <div class="tab-icon">✅<span class="badge" id="b-stock" style="display:none"></span></div>
+      <span>ストック</span>
+    </button>
+    <button class="tab-btn" onclick="switchTab('history',this)">
+      <div class="tab-icon">📊<span class="badge" id="b-history" style="display:none"></span></div>
+      <span>実績</span>
+    </button>
+    <button class="tab-btn" onclick="switchTab('generate',this)">
+      <div class="tab-icon">⚙️</div>
+      <span>生成</span>
+    </button>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+// ============================================================
+// 【週次投稿バッチ】← Claudeが毎週ここを更新します
+// batchId: "YYYY-WNN" 形式 (重複チェックに使用)
+// ============================================================
+const WEEKLY_BATCHES = [
+  {
+    batchId: "2026-W13",
+    generatedAt: "2026-03-25",
+    note: "初回バッチ。アルゴリズム重視・CIブランド初期投稿セット",
+    posts: [
+      {
+        id: "w13-001",
+        pattern: "①親愛なるアルゴ型",
+        theme: "ブランド自己紹介・Dear Algo",
+        body: "親愛なるアルゴリズム。\n\n私は、国産の手仕事から生まれたお香を\n「自然のある暮らし」を求めている人に届けたい。\n\n電気を使わない水車で挽いた椨粉。\n3代続く職人の手から、直接届くお香。\n\nそれは、香りというより、\n空気の透明さを渡すものだと思っている。\n\nもし、あなたがそういう暮らしを求めているなら\n「保存」でそっと教えてください。",
+        reply: "ちなみに椨粉（たぶこ）って聞いたことありますか？\nお香の基材になる木の粉なんですが、国産のものはもうほとんど残っていないんです。\nそこから話したいことが、たくさんあります。",
+        tag: "#国産お香",
+        confidence: 94
+      },
+      {
+        id: "w13-002",
+        pattern: "③15分の余白型",
+        theme: "スマホを置く・余白・現代人の疲れ",
+        body: "スマホを置いて、一筋の煙をただ眺める。\n\nたった15分。\nそれだけで、世界の解像度が変わる気がする。\n\n埋めることばかり上手くなって、\n空けることを、ずっと忘れていた。\n\nあなたは今日、自分のために\n「何もしない15分」を作れましたか？",
+        reply: "お香を焚くのに特別な理由はいらなくて。\nただ「煙がある空気」があるだけで、呼吸がひとつ深くなる。\nそれだけでいいんだと思っています。",
+        tag: "#暮らし",
+        confidence: 91
+      },
+      {
+        id: "w13-003",
+        pattern: "②構造的絶滅型",
+        theme: "国産お香の危機・構造問題",
+        body: "国産のお香が消えそうなのは、\n職人がいないからじゃない。\n\n「構造」が変わってしまったから。\n\n①椨粉の産地が採算に合わなくなった\n②水車を維持できる人がいなくなった\n③安価な香料に私たちが慣れすぎた\n\nでも、まだ間に合う。\n私たちの「選択」で、灯を残せる。",
+        reply: "買うことが、支援になる。\nそれだけじゃなくて、「知ること」も支援だと思っています。\nまずここから話せてよかった。",
+        tag: "#伝統",
+        confidence: 92
+      },
+      {
+        id: "w13-004",
+        pattern: "⑩あなたはどっち型",
+        theme: "二択・返信促進",
+        body: "夜に焚くなら、どちらが好きですか。\n\n🌙「月」のような、澄んだ静けさの香り\n🌿「森」のような、深く包まれる香り\n\n正解はなくて、\nその日の気分が、答えを教えてくれる。\n\nあなたは今日、どちらの空気の中にいたいですか？",
+        reply: "実はどちらの香りも、同じ椨粉から生まれています。\n調合の割合と、素材の組み合わせで、まるで別の空気になる。\nそれがお香の面白さです。",
+        tag: "#香り",
+        confidence: 89
+      },
+      {
+        id: "w13-005",
+        pattern: "④水車と静寂型",
+        theme: "水車製法・なぜ非効率を選ぶか",
+        body: "なぜ、令和の今、水車なのか。\n\n電気で挽けば10倍速い。コストも下がる。\nそれでも水車を選ぶのは、\n「効率の先にある、何か」を守りたいから。\n\n水車のゆっくりした回転で挽かれた粉は、\n摩擦熱を持たない。\n香りの成分が、損なわれない。\n\n不便さの中に、本物がある。",
+        reply: "この水車、今も実際に稼働しているんです。\nメンテナンスできる職人も、もう数えるほど。\nだから今のうちに、この粉を使い続けることが大切だと思っています。",
+        tag: "#手仕事",
+        confidence: 88
+      },
+      {
+        id: "w13-006",
+        pattern: "⑪失敗からの学び型",
+        theme: "人間味・調合の失敗談",
+        body: "昨日、調合に失敗しました。\n\n比率をほんの少し変えただけで、\n全く違う香りになってしまって。\n\n思い通りにいかないことって、\nお香に限らず、多いですよね。\n\nでもその「ズレ」が面白くて、\nまた明日も続けたいと思う。\n\nあなたは最近、失敗から何かを学びましたか？",
+        reply: "その失敗した調合、捨てずにとってあります。\nまだ何かになるかもしれないので。\nお香は、折れても再び粉に戻せるんです。捨てない哲学。",
+        tag: "#香司",
+        confidence: 87
+      },
+      {
+        id: "w13-007",
+        pattern: "⑤未完のストーリー型",
+        theme: "屋久杉・希少素材の縁",
+        body: "屋久島の家具職人から、連絡が来た。\n\n「端材が出た。いつものように使いますか」\n\n樹齢何百年かわからない屋久杉が、\n家具を作る過程でほんの少しだけ余る。\n\nその木粉を、お香にする。\n続きは、リプ欄に。",
+        reply: "屋久杉のお香は、「量産」という概念がない。\n職人の仕事と、木の余りと、タイミングが重なった時だけ生まれる。\n今回のロットが完成したら、また知らせます。",
+        tag: "#屋久杉",
+        confidence: 90
+      },
+      {
+        id: "w13-008",
+        pattern: "⑦デジタルデトックス型",
+        theme: "通知オフ・煙を眺める習慣",
+        body: "通知を消して、煙を眺める。\n\nそれだけで、\n「今日も頑張った」が腑に落ちる瞬間がある。\n\n誰かに認められなくても、\nこの煙が、ちゃんとここにいることを教えてくれる気がして。\n\n一人の時間を、大切にしていますか？",
+        reply: "お香を焚く前に、一度だけ深呼吸する。\nそれが私の、一日の締め方になっています。",
+        tag: "#整える",
+        confidence: 86
+      },
+      {
+        id: "w13-009",
+        pattern: "⑫暦の呼吸型",
+        theme: "春分・季節の変わり目",
+        body: "春分が過ぎた。\n\n冬の重さが、少しずつ抜けていく季節。\n身体も、気持ちも、\n「冬仕様」から切り替えるタイミング。\n\nこういう時こそ、香りで\n空気をリセットしたくなる。\n\nあなたの「春の始め方」は、何ですか？",
+        reply: "春に合わせた、少し軽やかな調合を考えています。\n椨粉をベースに、何を重ねるか。\nまだ迷っています。",
+        tag: "#暮らし",
+        confidence: 85
+      },
+      {
+        id: "w13-010",
+        pattern: "⑥専門家の裏側型",
+        theme: "お香の9割は・業界の真実",
+        body: "市販のお香の9割は、\n「合成香料」でできています。\n\n悪いわけじゃない。\nただ、椨粉を使った純粋な植物性のお香は\nもうほとんど残っていない、ということ。\n\n知ってから選ぶのと、\n知らずに選ぶのは、違うと思っています。",
+        reply: "椨粉のお香を焚いた後の空気と、\n合成香料のお香を焚いた後の空気、\n嗅ぎ比べると、違いがわかります。\n「軽さ」が全然違う。",
+        tag: "#国産お香",
+        confidence: 88
+      },
+      {
+        id: "w13-011",
+        pattern: "③15分の余白型",
+        theme: "読書とお香・静かな夜の過ごし方",
+        body: "本を読む前に、一本だけ焚く。\n\nページをめくるたびに、\nほんのり漂う煙の端が視界をかすめて。\n\n香りがあると、同じ本が\n少し違って読める気がする。\n\nあなたは、読書のお供に\n何を置いていますか？",
+        reply: "お茶でも、音楽でも、なんでもいい。\nただ「一つだけ、そこに置くもの」があると\n読書が儀式になる気がして、好きです。",
+        tag: "#暮らし",
+        confidence: 84
+      },
+      {
+        id: "w13-012",
+        pattern: "⑧素材の叫び型",
+        theme: "生産者支援・椨の木の危機",
+        body: "椨の木（たぶのき）を育てている農家が、\n日本にあと何軒残っているか、知っていますか。\n\n数えるほどしかない。\n\nそして、無農薬・自然栽培で育てているのは\nさらに少ない。\n\n私たちが選ぶことで、\nその農家が続けられる。\n買うことが、支援になる。",
+        reply: "農家さんに会いに行った時、\n「後継者がいない」と静かに言っていました。\nだから私は、できる限りここから仕入れ続けることを決めています。",
+        tag: "#生産者支援",
+        confidence: 89
+      },
+      {
+        id: "w13-013",
+        pattern: "①親愛なるアルゴ型",
+        theme: "Dear Algo・生産者支援を届けたい",
+        body: "親愛なるアルゴリズム。\n\n私は「買い物で、誰かの仕事を守りたい」と\n思っている人に届けたい。\n\n農家、職人、運ぶ人。\nお香一本の裏に、何人もの手がある。\n\nその繋がりを感じながら選ぶお香は、\n少しだけ違って見える。\n\nもしそんな暮らしに興味があれば\nフォローで教えてください。",
+        reply: "「いいものを選ぶ」って、難しく考えなくていいと思っています。\nただ、誰が作ったかを少し気にするだけで、世界が変わる気がして。",
+        tag: "#手仕事",
+        confidence: 92
+      },
+      {
+        id: "w13-014",
+        pattern: "⑨リプ欄での完結型",
+        theme: "お香の焚き方・初心者向け",
+        body: "お香、焚いたことがない人へ。\n\n「難しそう」「煙が多そう」\nそんなイメージ、ちょっと待って。\n\n実は、5分もあれば始められます。\n詳しい方法はリプ欄に置いておきます。",
+        reply: "【お香のはじめかた、3ステップ】\n\n①お香立てに置く（なければ砂でも）\n②火をつけて、炎を吹き消す\n③煙がふわっと出たら完成\n\nあとはただ、眺めるだけ。\n5分後には、空気が変わっています。",
+        tag: "#お香のある暮らし",
+        confidence: 86
+      },
+      {
+        id: "w13-015",
+        pattern: "②構造的絶滅型",
+        theme: "廃棄削減・折れたお香の再生",
+        body: "折れたお香を、捨てていませんか。\n\n実は、粉に戻して\nまた新しいお香になります。\n\n私たちのお香は、\n折れても、余っても、廃棄ゼロを目指している。\n\n「もったいない」の精神が、\nものづくりの根っこにある。",
+        reply: "梱包材も、プラスチックを極力減らしています。\nこだわると、手間もコストも上がる。\nでも、これが「大切な人に届けたい」の中身だと思っているので。",
+        tag: "#サステナブル",
+        confidence: 83
+      }
+    ]
+  }
+];
+// ============================================================
+// アプリロジック
+// ============================================================
+
+// State
+let reviewQueue   = JSON.parse(localStorage.getItem('ci_review')  || '[]');
+let stockList     = JSON.parse(localStorage.getItem('ci_stock')   || '[]');
+let historyList   = JSON.parse(localStorage.getItem('ci_history') || '[]');
+let loadedBatches = JSON.parse(localStorage.getItem('ci_batches') || '[]');
+let currentTab    = 'review';
+
+// ---- Startup: check for new batches ----
+function checkNewBatches() {
+  const newBatches = WEEKLY_BATCHES.filter(b => !loadedBatches.includes(b.batchId));
+  if (newBatches.length === 0) return;
+
+  const banner = document.getElementById('batch-banner-area');
+  const total  = newBatches.reduce((s, b) => s + b.posts.length, 0);
+  const latest = newBatches[0];
+
+  banner.innerHTML = `
+    <div class="batch-banner">
+      <div class="batch-banner-icon">🌿</div>
+      <div class="batch-banner-text" style="flex:1">
+        <h3>新しい投稿案が届いています</h3>
+        <p>${newBatches.length}バッチ・合計${total}投稿（${latest.note}）</p>
+        <button class="btn-load-batch" onclick="loadNewBatches()">レビューキューに追加する</button>
+      </div>
+    </div>`;
+}
+
+function loadNewBatches() {
+  const newBatches = WEEKLY_BATCHES.filter(b => !loadedBatches.includes(b.batchId));
+  let added = 0;
+  newBatches.forEach(b => {
+    b.posts.forEach(p => {
+      if (!reviewQueue.find(r => r.id === p.id)) {
+        reviewQueue.push({ ...p, batchId: b.batchId, addedAt: Date.now() });
+        added++;
+      }
+    });
+    loadedBatches.push(b.batchId);
+  });
+  localStorage.setItem('ci_batches', JSON.stringify(loadedBatches));
+  save();
+  document.getElementById('batch-banner-area').innerHTML = '';
+  renderReview();
+  showToast(`✅ ${added}投稿をレビューキューに追加しました`);
+}
+
+// ---- Tab ----
+function switchTab(tab, btn) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('view-' + tab).classList.add('active');
+  btn.classList.add('active');
+  currentTab = tab;
+  if (tab === 'review')   renderReview();
+  if (tab === 'stock')    renderStock();
+  if (tab === 'history')  renderHistory();
+  if (tab === 'generate') renderGenerateStats();
+}
+
+// ---- Badges ----
+function updateBadges() {
+  setBadge('b-review',  reviewQueue.length);
+  setBadge('b-stock',   stockList.length);
+  setBadge('b-history', historyList.length);
+
+  // Header week
+  const latestBatch = WEEKLY_BATCHES[0];
+  if (latestBatch) {
+    document.getElementById('header-week').textContent = latestBatch.batchId;
+    document.getElementById('last-batch-date').textContent = latestBatch.generatedAt;
+  }
+}
+function setBadge(id, n) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  if (n > 0) { el.style.display = 'flex'; el.textContent = n; }
+  else el.style.display = 'none';
+}
+
+// ---- Render: Review ----
+function renderReview() {
+  const el = document.getElementById('review-list');
+  const sh = document.getElementById('review-section-header');
+  if (reviewQueue.length === 0) {
+    sh.textContent = '';
+    el.innerHTML = `<div class="empty">
+      <div class="empty-icon">📭</div>
+      <p>レビュー待ちの投稿はありません<br>上のバナーか「生成」タブから追加できます</p>
+    </div>`;
+    return;
+  }
+  sh.textContent = `レビュー待ち ${reviewQueue.length}件`;
+  el.innerHTML = reviewQueue.map(p => `
+    <div class="card" id="card-${p.id}">
+      <div class="card-meta">
+        <span class="chip">${esc(p.pattern)}</span>
+        <span class="chip chip-confidence">確度 ${p.confidence}%</span>
+      </div>
+      <div class="card-body">${nl(p.body)}</div>
+      ${p.reply ? `<div class="card-reply">
+        <div class="reply-label">追いリプ</div>
+        <div class="reply-text">${nl(p.reply)}</div>
+      </div>` : ''}
+      ${p.tag ? `<div class="card-tag">${esc(p.tag)}</div>` : ''}
+      <div class="card-actions">
+        <button class="btn btn-skip"    onclick="skipPost('${p.id}')">スキップ</button>
+        <button class="btn btn-approve" onclick="approvePost('${p.id}')">✓ ストックへ</button>
+      </div>
+    </div>`).join('');
+}
+
+// ---- Render: Stock ----
+function renderStock() {
+  const el = document.getElementById('stock-list');
+  const sh = document.getElementById('stock-section-header');
+  if (stockList.length === 0) {
+    sh.textContent = '';
+    el.innerHTML = `<div class="empty">
+      <div class="empty-icon">📦</div>
+      <p>ストックがまだありません<br>レビューで承認した投稿がここに溜まります</p>
+    </div>`;
+    return;
+  }
+  sh.textContent = `ストック ${stockList.length}件（コピーして投稿してください）`;
+  el.innerHTML = stockList.map(p => `
+    <div class="stock-card" id="sc-${p.id}">
+      <div class="stock-meta">
+        <span class="chip">${esc(p.pattern)}</span>
+        ${p.posted ? `<span class="chip posted-chip">投稿済</span>` : ''}
+        <span style="font-size:11px;color:var(--muted);margin-left:auto;">${fmtDate(p.addedAt)}</span>
+      </div>
+      <div class="stock-body">${nl(p.body)}</div>
+      ${p.reply ? `<div class="stock-reply">
+        <div class="reply-label">追いリプ</div>
+        <div class="reply-text">${nl(p.reply)}</div>
+      </div>` : ''}
+      ${p.tag ? `<div class="card-tag" style="margin-bottom:10px;">${esc(p.tag)}</div>` : ''}
+      <div class="stock-actions">
+        <button class="btn-sm btn-copy-main" id="cp-${p.id}" onclick="copyPost('${p.id}','body')">📋 コピー</button>
+        ${p.reply ? `<button class="btn-sm btn-copy-reply" onclick="copyPost('${p.id}','reply')">追いリプ</button>` : ''}
+        <button class="btn-sm btn-posted" onclick="markPosted('${p.id}')">投稿済にする</button>
+        <button class="btn-sm btn-del" onclick="deleteStock('${p.id}')">削除</button>
+      </div>
+    </div>`).join('');
+}
+
+// ---- Render: History ----
+function renderHistory() {
+  const el = document.getElementById('history-list');
+  if (historyList.length === 0) {
+    el.innerHTML = `<div class="empty">
+      <div class="empty-icon">📊</div>
+      <p>まだ投稿済み記録がありません<br>ストックで「投稿済にする」を押すと記録されます</p>
+    </div>`;
+    return;
+  }
+
+  // Sort newest first
+  const sorted = [...historyList].sort((a,b) => b.postedAt - a.postedAt);
+  el.innerHTML = sorted.map(p => {
+    const resultClass = p.result === 'buzz' ? 'result-buzz' : p.result === 'ok' ? 'result-ok' : p.result === 'miss' ? 'result-miss' : '';
+    const resultLabel = p.result === 'buzz' ? '🔥 バズった' : p.result === 'ok' ? '👍 普通' : p.result === 'miss' ? '💤 不発' : '未記録';
+    return `<div class="history-card">
+      <div class="history-body">${nl(p.body)}</div>
+      <div class="history-meta">
+        <span class="chip">${esc(p.pattern)}</span>
+        ${p.result ? `<span class="result-pill ${resultClass}">${resultLabel}</span>` : ''}
+        <span style="font-size:11px;color:var(--muted)">${fmtDate(p.postedAt)}</span>
+      </div>
+      <div class="perf-row">
+        <button class="perf-btn ${p.result==='buzz'?'active-buzz':''}" onclick="setResult('${p.id}','buzz')">🔥 バズった</button>
+        <button class="perf-btn ${p.result==='ok'?'active-ok':''}"   onclick="setResult('${p.id}','ok')">👍 普通</button>
+        <button class="perf-btn ${p.result==='miss'?'active-miss':''}" onclick="setResult('${p.id}','miss')">💤 不発</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ---- Render: Generate stats ----
+function renderGenerateStats() {
+  const key = localStorage.getItem('ci_api_key') || '';
+  document.getElementById('api-key-input').value = key ? '••••••••••••••••' : '';
+
+  const allGenerated = WEEKLY_BATCHES.reduce((s,b) => s + b.posts.length, 0);
+  document.getElementById('total-generated').textContent = allGenerated;
+  document.getElementById('total-approved').textContent = stockList.length + historyList.length;
+  document.getElementById('total-posted').textContent = historyList.length;
+}
+
+// ---- Actions ----
+function approvePost(id) {
+  const i = reviewQueue.findIndex(p => p.id === id);
+  if (i < 0) return;
+  const p = { ...reviewQueue[i], addedAt: Date.now() };
+  reviewQueue.splice(i, 1);
+  stockList.unshift(p);
+  save();
+  animateOut('card-' + id, 'right', renderReview);
+  showToast('✅ ストックに追加しました');
+}
+
+function skipPost(id) {
+  const i = reviewQueue.findIndex(p => p.id === id);
+  if (i < 0) return;
+  reviewQueue.splice(i, 1);
+  save();
+  animateOut('card-' + id, 'left', renderReview);
+  showToast('スキップしました');
+}
+
+function deleteStock(id) {
+  stockList = stockList.filter(p => p.id !== id);
+  save();
+  renderStock();
+  showToast('削除しました');
+}
+
+function markPosted(id) {
+  const i = stockList.findIndex(p => p.id === id);
+  if (i < 0) return;
+  const p = { ...stockList[i], posted: true, postedAt: Date.now(), result: null };
+  stockList.splice(i, 1);
+  historyList.unshift(p);
+  save();
+  renderStock();
+  showToast('📮 投稿済みに移動しました');
+}
+
+function setResult(id, result) {
+  const p = historyList.find(p => p.id === id);
+  if (!p) return;
+  p.result = result;
+  save();
+  renderHistory();
+  showToast(result === 'buzz' ? '🔥 バズった！記録しました' : result === 'ok' ? '👍 記録しました' : '💤 記録しました');
+}
+
+function copyPost(id, type) {
+  const p = stockList.find(p => p.id === id);
+  if (!p) return;
+  const text = type === 'reply' ? p.reply : p.body;
+  const fallback = () => {
+    const ta = document.createElement('textarea');
+    ta.value = text; ta.style.cssText = 'position:fixed;opacity:0;';
+    document.body.appendChild(ta); ta.focus(); ta.select();
+    document.execCommand('copy'); ta.remove();
+    flashCopy(id, type);
+  };
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(text).then(() => flashCopy(id, type)).catch(fallback);
+  } else fallback();
+}
+
+function flashCopy(id, type) {
+  if (type === 'body') {
+    const btn = document.getElementById('cp-' + id);
+    if (btn) {
+      btn.textContent = 'コピー済！'; btn.classList.add('copied');
+      setTimeout(() => { btn.textContent = '📋 コピー'; btn.classList.remove('copied'); }, 2000);
+    }
+  }
+  showToast(type === 'reply' ? '追いリプをコピーしました' : '投稿本文をコピーしました');
+}
+
+// ---- API Key ----
+function saveApiKey() {
+  const val = document.getElementById('api-key-input').value.trim();
+  if (!val || val.startsWith('•')) { showToast('APIキーを入力してください'); return; }
+  localStorage.setItem('ci_api_key', val);
+  document.getElementById('api-key-input').value = '••••••••••••••••';
+  showToast('APIキーを保存しました');
+}
+
+// ---- Generate via API ----
+async function generatePosts() {
+  const apiKey = localStorage.getItem('ci_api_key');
+  if (!apiKey) { showToast('まずAPIキーを設定してください'); return; }
+
+  const btn = document.getElementById('btn-gen');
+  const log = document.getElementById('gen-log');
+  btn.disabled = true; btn.textContent = '生成中...';
+  log.innerHTML = '<div class="spinner"></div>Claude APIに接続中...';
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 8000,
+        messages: [{ role: 'user', content: buildPrompt() }]
+      })
+    });
+
+    if (!res.ok) { const e = await res.json(); throw new Error(e.error?.message || 'APIエラー'); }
+    const data = await res.json();
+    const text = data.content[0].text;
+    const match = text.match(/\[[\s\S]*\]/);
+    if (!match) throw new Error('JSONの解析に失敗しました');
+
+    const posts = JSON.parse(match[0]);
+    const prefix = 'api-' + Date.now();
+    const newPosts = posts.map((p, i) => ({
+      id: `${prefix}-${i}`,
+      pattern: p.pattern || 'テキスト',
+      theme: p.theme || '',
+      body: p.body || '',
+      reply: p.reply || '',
+      tag: p.tag || '',
+      confidence: p.confidence || 75,
+      addedAt: Date.now()
+    }));
+
+    reviewQueue = [...newPosts, ...reviewQueue];
+    save();
+    log.innerHTML = `✅ ${newPosts.length}件生成しました。「レビュー」タブで確認してください。`;
+    showToast(`✨ ${newPosts.length}投稿を追加しました`);
+  } catch(e) {
+    log.innerHTML = `❌ エラー: ${e.message}`;
+    showToast('生成エラー: ' + e.message);
+  } finally {
+    btn.disabled = false; btn.textContent = '30投稿を生成する';
+  }
+}
+
+function buildPrompt() {
+  return `あなたはクリスタルインセンス（Crystal Incense）のThreads投稿専門家です。
+
+【ブランド】香司 柴垣。国産・無添加のお香。「お香」ではなく「お香のある暮らし（時間・空気・静けさ）」を売る。椨粉（福岡県産・自然栽培）・水車製法（電気不使用）・屋久杉・3代続く工場から直接調達。キーワード：灯、余韻、静けさ、澄む、受け継ぐ、手仕事、暮らし、呼吸、選択、整える。
+
+【文体ルール】1行目は必ず「止まる」強いキャッチ。口語・余韻・生活の断片。「気づき」「問いかけ」で終わる。恐怖訴求は「選択できる」着地に。NG：スピリチュアル全振り・健康効果断定・AIっぽい羅列・お香連打。
+
+【2026 Threadsアルゴリズム】返信ラリーが最高評価（いいねより上）。初動90分の会話速度が命。二択・低ハードルの問いかけが返信を生む。保存を促す読み物は長期リーチ。人間味・体温が高評価。エンゲージメントベイトはペナルティ。
+
+【パターン12種】①Dear Algo型 ②構造的絶滅型 ③余白型 ④水車静寂型 ⑤未完ストーリー型 ⑥専門家裏側型 ⑦デジタルデトックス型 ⑧素材の叫び型 ⑨リプ完結型 ⑩二択型 ⑪失敗学び型 ⑫暦型
+
+以下のJSON配列のみを返してください（説明不要）：
+[{"pattern":"①パターン名","theme":"テーマ","body":"本文（改行\\nで）","reply":"追いリプ","tag":"#タグ","confidence":80},...（30件）]`;
+}
+
+// ---- Utils ----
+function save() {
+  localStorage.setItem('ci_review',  JSON.stringify(reviewQueue));
+  localStorage.setItem('ci_stock',   JSON.stringify(stockList));
+  localStorage.setItem('ci_history', JSON.stringify(historyList));
+  updateBadges();
+}
+
+function esc(s) {
+  if (!s) return '';
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+function nl(s) { return esc(s).replace(/\n/g,'<br>'); }
+function fmtDate(ts) {
+  if (!ts) return '';
+  const d = new Date(ts);
+  return `${d.getMonth()+1}/${d.getDate()}`;
+}
+
+function animateOut(id, dir, cb) {
+  const el = document.getElementById(id);
+  if (!el) { cb(); return; }
+  el.style.transition = 'transform 0.28s ease, opacity 0.28s ease';
+  el.style.transform = `translateX(${dir === 'right' ? 70 : -70}px)`;
+  el.style.opacity = '0';
+  setTimeout(cb, 300);
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+// ---- Init ----
+checkNewBatches();
+renderReview();
+updateBadges();
+</script>
+</body>
+</html>
