@@ -1,43 +1,18 @@
-name: 週次投稿更新
+name: Cloudflare デプロイ
 
 on:
-  schedule:
-    - cron: '0 20 * * 0'  # 日曜 20:00 UTC = 月曜 05:00 JST
-  workflow_dispatch:       # 手動実行ボタンも有効
+  push:
+    branches: [main]
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  update-posts:
+  deploy:
     runs-on: ubuntu-latest
-
     steps:
-      - name: リポジトリをチェックアウト
+      - name: チェックアウト
         uses: actions/checkout@v4
-
-      - name: Python セットアップ
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-
-      - name: anthropic ライブラリをインストール
-        run: pip install anthropic
-
-      - name: 新しい投稿を生成
-        env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-        run: python generate_posts.py
-
-      - name: 変更をコミット＆プッシュ
-        run: |
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git config user.name "CI Auto Update"
-          git add index.html
-          git diff --staged --quiet && echo "変更なし" || (
-            git commit -m "週次投稿更新 $(TZ=Asia/Tokyo date +'%Y-W%V')"
-            git push
-          )
 
       - name: Cloudflare Pages にデプロイ
         env:
