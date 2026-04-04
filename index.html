@@ -457,10 +457,14 @@ const WEEKLY_BATCHES = [
 // ============================================================
 
 // State
-let reviewQueue   = JSON.parse(localStorage.getItem('ci_review')  || '[]');
-let stockList     = JSON.parse(localStorage.getItem('ci_stock')   || '[]');
-let historyList   = JSON.parse(localStorage.getItem('ci_history') || '[]');
-let loadedBatches = JSON.parse(localStorage.getItem('ci_batches') || '[]');
+function loadState(key, fallback) {
+  try { return JSON.parse(localStorage.getItem(key) || fallback); }
+  catch { localStorage.removeItem(key); return JSON.parse(fallback); }
+}
+let reviewQueue   = loadState('ci_review',  '[]');
+let stockList     = loadState('ci_stock',   '[]');
+let historyList   = loadState('ci_history', '[]');
+let loadedBatches = loadState('ci_batches', '[]');
 let currentTab    = 'review';
 
 // ---- Startup: check for new batches ----
@@ -615,7 +619,7 @@ function renderHistory() {
   }
 
   // Sort newest first
-  const sorted = [...historyList].sort((a,b) => b.postedAt - a.postedAt);
+  const sorted = [...historyList].sort((a,b) => (b.postedAt || 0) - (a.postedAt || 0));
   el.innerHTML = sorted.map(p => {
     const resultClass = p.result === 'buzz' ? 'result-buzz' : p.result === 'ok' ? 'result-ok' : p.result === 'miss' ? 'result-miss' : '';
     const resultLabel = p.result === 'buzz' ? '🔥 バズった' : p.result === 'ok' ? '👍 普通' : p.result === 'miss' ? '💤 不発' : '未記録';
@@ -637,9 +641,6 @@ function renderHistory() {
 
 // ---- Render: Generate stats ----
 function renderGenerateStats() {
-  const key = localStorage.getItem('ci_api_key') || '';
-  document.getElementById('api-key-input').value = key ? '••••••••••••••••' : '';
-
   const allGenerated = WEEKLY_BATCHES.reduce((s,b) => s + b.posts.length, 0);
   document.getElementById('total-generated').textContent = allGenerated;
   document.getElementById('total-approved').textContent = stockList.length + historyList.length;
@@ -721,86 +722,7 @@ function flashCopy(id, type) {
   showToast(type === 'reply' ? '追いリプをコピーしました' : '投稿本文をコピーしました');
 }
 
-// ---- API Key ----
-function saveApiKey() {
-  const val = document.getElementById('api-key-input').value.trim();
-  if (!val || val.startsWith('•')) { showToast('APIキーを入力してください'); return; }
-  localStorage.setItem('ci_api_key', val);
-  document.getElementById('api-key-input').value = '••••••••••••••••';
-  showToast('APIキーを保存しました');
-}
-
-// ---- Generate via API ----
-async function generatePosts() {
-  const apiKey = localStorage.getItem('ci_api_key');
-  if (!apiKey) { showToast('まずAPIキーを設定してください'); return; }
-
-  const btn = document.getElementById('btn-gen');
-  const log = document.getElementById('gen-log');
-  btn.disabled = true; btn.textContent = '生成中...';
-  log.innerHTML = '<div class="spinner"></div>Claude APIに接続中...';
-
-  try {
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-        'anthropic-dangerous-direct-browser-access': 'true'
-      },
-      body: JSON.stringify({
-        model: 'claude-haiku-4-5-20251001',
-        max_tokens: 8000,
-        messages: [{ role: 'user', content: buildPrompt() }]
-      })
-    });
-
-    if (!res.ok) { const e = await res.json(); throw new Error(e.error?.message || 'APIエラー'); }
-    const data = await res.json();
-    const text = data.content[0].text;
-    const match = text.match(/\[[\s\S]*\]/);
-    if (!match) throw new Error('JSONの解析に失敗しました');
-
-    const posts = JSON.parse(match[0]);
-    const prefix = 'api-' + Date.now();
-    const newPosts = posts.map((p, i) => ({
-      id: `${prefix}-${i}`,
-      pattern: p.pattern || 'テキスト',
-      theme: p.theme || '',
-      body: p.body || '',
-      reply: p.reply || '',
-      tag: p.tag || '',
-      confidence: p.confidence || 75,
-      addedAt: Date.now()
-    }));
-
-    reviewQueue = [...newPosts, ...reviewQueue];
-    save();
-    log.innerHTML = `✅ ${newPosts.length}件生成しました。「レビュー」タブで確認してください。`;
-    showToast(`✨ ${newPosts.length}投稿を追加しました`);
-  } catch(e) {
-    log.innerHTML = `❌ エラー: ${e.message}`;
-    showToast('生成エラー: ' + e.message);
-  } finally {
-    btn.disabled = false; btn.textContent = '30投稿を生成する';
-  }
-}
-
-function buildPrompt() {
-  return `あなたはクリスタルインセンス（Crystal Incense）のThreads投稿専門家です。
-
-【ブランド】香司 柴垣。国産・無添加のお香。「お香」ではなく「お香のある暮らし（時間・空気・静けさ）」を売る。椨粉（福岡県産・自然栽培）・水車製法（電気不使用）・屋久杉・3代続く工場から直接調達。キーワード：灯、余韻、静けさ、澄む、受け継ぐ、手仕事、暮らし、呼吸、選択、整える。
-
-【文体ルール】1行目は必ず「止まる」強いキャッチ。口語・余韻・生活の断片。「気づき」「問いかけ」で終わる。恐怖訴求は「選択できる」着地に。NG：スピリチュアル全振り・健康効果断定・AIっぽい羅列・お香連打。
-
-【2026 Threadsアルゴリズム】返信ラリーが最高評価（いいねより上）。初動90分の会話速度が命。二択・低ハードルの問いかけが返信を生む。保存を促す読み物は長期リーチ。人間味・体温が高評価。エンゲージメントベイトはペナルティ。
-
-【パターン12種】①Dear Algo型 ②構造的絶滅型 ③余白型 ④水車静寂型 ⑤未完ストーリー型 ⑥専門家裏側型 ⑦デジタルデトックス型 ⑧素材の叫び型 ⑨リプ完結型 ⑩二択型 ⑪失敗学び型 ⑫暦型
-
-以下のJSON配列のみを返してください（説明不要）：
-[{"pattern":"①パターン名","theme":"テーマ","body":"本文（改行\\nで）","reply":"追いリプ","tag":"#タグ","confidence":80},...（30件）]`;
-}
+// saveApiKey() と generatePosts() はUI刷新時に削除済み（GitHub Actions で自動生成）
 
 // ---- Utils ----
 function save() {
@@ -839,7 +761,7 @@ function showToast(msg) {
 // ---- Hard Reload ----
 function hardReload() {
   showToast('最新版を取得中...');
-  setTimeout(() => window.location.reload(true), 500);
+  setTimeout(() => window.location.reload(), 500);
 }
 
 

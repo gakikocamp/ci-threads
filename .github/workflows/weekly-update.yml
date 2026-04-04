@@ -1,21 +1,48 @@
-name: Cloudflare デプロイ
+name: 週次投稿自動生成
 
 on:
-  push:
-    branches: [main]
+  schedule:
+    - cron: '0 20 * * 0'  # 毎週月曜 5:00 JST
+  workflow_dispatch:       # 手動実行ボタンも追加
+    inputs:
+      extra:
+        description: '追加バッチを生成する（通常週に2回目）'
+        type: boolean
+        default: false
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
-  deploy:
+  generate:
     runs-on: ubuntu-latest
     steps:
       - name: チェックアウト
         uses: actions/checkout@v4
 
-      - name: Cloudflare Pages にデプロイ
+      - name: Python セットアップ
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: 依存関係インストール
+        run: pip install -r requirements.txt
+
+      - name: 投稿生成
+        timeout-minutes: 10
         env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
-        run: npx wrangler pages deploy . --project-name=ci-threads --branch=main
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          if [ "${{ github.event.inputs.extra }}" = "true" ]; then
+            python generate_posts.py --extra
+          else
+            python generate_posts.py
+          fi
+
+      - name: 変更をコミット＆プッシュ
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          git diff --cached --quiet || git commit -m "週次投稿更新 $(date +'%Y-W%V')"
+          git push

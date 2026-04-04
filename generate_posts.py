@@ -82,13 +82,18 @@ def generate_posts(week_id, date_str):
         messages=[{"role": "user", "content": build_prompt(week_id, date_str)}]
     )
 
-    text = message.content[0].text
+    text_block = next((b for b in message.content if hasattr(b, 'text')), None)
+    if not text_block:
+        raise ValueError("APIレスポンスにテキストコンテンツがありません")
+    text = text_block.text
     match = re.search(r'\[[\s\S]*\]', text)
     if not match:
         raise ValueError(f"JSONが見つかりません。レスポンス: {text[:200]}")
 
     posts = json.loads(match.group())
     print(f"{len(posts)}件の投稿を生成しました")
+    if len(posts) < 40:
+        print(f"⚠️ 警告: 期待件数(40)より少ない {len(posts)} 件しか生成されませんでした")
     return posts
 
 def update_html(posts, week_id, date_str):
