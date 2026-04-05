@@ -188,32 +188,10 @@
       font-family: inherit; cursor: pointer;
     }
     .btn-gen-main:disabled { opacity: 0.5; cursor: not-allowed; }
-    .input-label { font-size: 12px; font-weight: 600; color: var(--muted); margin-bottom: 7px; display: block; }
-    .text-input {
-      width: 100%; padding: 12px 14px; border: 1px solid var(--border);
-      border-radius: 10px; font-size: 14px; font-family: inherit;
-      background: var(--bg); color: var(--text); outline: none;
-    }
-    .text-input:focus { border-color: var(--primary); }
-    .btn-save-key {
-      width: 100%; margin-top: 10px; padding: 12px; background: var(--primary-light);
-      color: var(--primary); border: none; border-radius: 10px;
-      font-size: 14px; font-weight: 600; font-family: inherit; cursor: pointer;
-    }
-    .gen-log { font-size: 12px; color: var(--muted); line-height: 1.7; min-height: 40px; }
-
     /* Empty state */
     .empty { text-align: center; padding: 56px 20px; }
     .empty-icon { font-size: 48px; margin-bottom: 12px; }
     .empty p { font-size: 14px; color: var(--muted); line-height: 1.7; }
-
-    /* Loading */
-    .spinner {
-      width: 36px; height: 36px; border: 3px solid var(--border);
-      border-top-color: var(--primary); border-radius: 50%;
-      animation: spin 0.75s linear infinite; margin: 0 auto 14px;
-    }
-    @keyframes spin { to { transform: rotate(360deg); } }
 
     /* Toast */
     .toast {

@@ -8,6 +8,7 @@ import json
 import re
 import os
 import sys
+import tempfile
 from datetime import datetime, timezone, timedelta
 
 JST = timezone(timedelta(hours=9))
@@ -91,6 +92,8 @@ def generate_posts(week_id, date_str):
         raise ValueError(f"JSONが見つかりません。レスポンス: {text[:200]}")
 
     posts = json.loads(match.group())
+    if not posts:
+        raise ValueError("生成された投稿が0件です。APIレスポンスを確認してください")
     print(f"{len(posts)}件の投稿を生成しました")
     if len(posts) < 40:
         print(f"⚠️ 警告: 期待件数(40)より少ない {len(posts)} 件しか生成されませんでした")
@@ -115,6 +118,8 @@ def update_html(posts, week_id, date_str):
     }
 
     batch_json = json.dumps(new_batch, ensure_ascii=False, indent=2)
+    # <script>ブロック内の</script>タグを安全にエスケープ
+    batch_json = batch_json.replace('</', '<\\/')
     # インデント調整
     lines = batch_json.split('\n')
     indented = '\n'.join('  ' + line for line in lines)
@@ -129,8 +134,12 @@ def update_html(posts, week_id, date_str):
         1
     )
 
-    with open(html_path, 'w', encoding='utf-8') as f:
-        f.write(new_content)
+    # アトミック書き込み（書き込み中の失敗でファイルが壊れないように）
+    dir_name = os.path.dirname(os.path.abspath(html_path))
+    with tempfile.NamedTemporaryFile('w', encoding='utf-8', dir=dir_name, delete=False, suffix='.tmp') as tmp:
+        tmp.write(new_content)
+        tmp_path = tmp.name
+    os.replace(tmp_path, html_path)
 
     print(f"index.html を更新しました（{week_id}、{len(posts)}件）")
     return True
