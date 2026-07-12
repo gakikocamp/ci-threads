@@ -1,0 +1,8 @@
+name = "ci-threads"
+compatibility_date = "2026-04-01"
+pages_build_output_dir = "."
+
+[[d1_databases]]
+binding = "DB"
+database_name = "ci_zukou"
+database_id = "2b26763a-7369-424c-a8ee-8421e21b06d2"

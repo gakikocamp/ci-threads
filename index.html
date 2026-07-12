@@ -955,6 +955,7 @@ function renderReview() {
       <div class="card-meta">
         <span class="chip">${esc(p.pattern)}</span>
         <span class="chip chip-confidence">確度 ${p.confidence}%</span>
+        ${p.cta ? '<span class="chip" style="background:#e3f2fd;color:#1565c0;">🔗 導線</span>' : ''}
       </div>
       <div class="card-body">${nl(p.body)}</div>
       ${p.reply ? `<div class="card-reply">
@@ -986,6 +987,7 @@ function renderStock() {
     <div class="stock-card" id="sc-${p.id}">
       <div class="stock-meta">
         <span class="chip">${esc(p.pattern)}</span>
+        ${p.cta ? '<span class="chip" style="background:#e3f2fd;color:#1565c0;">🔗 導線</span>' : ''}
         ${p.posted ? `<span class="chip posted-chip">投稿済</span>` : ''}
         <span style="font-size:11px;color:var(--muted);margin-left:auto;">${fmtDate(p.addedAt)}</span>
       </div>
@@ -1079,6 +1081,7 @@ function markPosted(id) {
   stockList.splice(i, 1);
   historyList.unshift(p);
   save();
+  queueSync();
   renderStock();
   showToast('📮 投稿済みに移動しました');
 }
@@ -1088,8 +1091,41 @@ function setResult(id, result) {
   if (!p) return;
   p.result = result;
   save();
+  queueSync();
   renderHistory();
   showToast(result === 'buzz' ? '🔥 バズった！記録しました' : result === 'ok' ? '👍 記録しました' : '💤 記録しました');
+}
+
+// ---- 結果同期（D1へ送信 → 週次生成が学習する） ----
+const SYNC_URL = '/api/results';
+const SYNC_KEY = 'ci-threads-sync-v1';
+let syncTimer = null;
+function queueSync() {
+  localStorage.setItem('ci_sync_dirty', '1');
+  clearTimeout(syncTimer);
+  syncTimer = setTimeout(syncResults, 1500);
+}
+async function syncResults() {
+  if (historyList.length === 0) { localStorage.removeItem('ci_sync_dirty'); return; }
+  const posts = historyList.map(p => ({
+    id: p.id,
+    batchId: p.batchId || null,
+    pattern: p.pattern || null,
+    theme: p.theme || null,
+    tag: p.tag || null,
+    body: p.body || null,
+    cta: !!p.cta,
+    postedAt: p.postedAt || null,
+    result: p.result || null
+  }));
+  try {
+    const res = await fetch(SYNC_URL, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-sync-key': SYNC_KEY },
+      body: JSON.stringify({ posts })
+    });
+    if (res.ok) localStorage.removeItem('ci_sync_dirty');
+  } catch { /* オフライン等。dirtyフラグが残り、次回ロード時に再送される */ }
 }
 
 function copyPost(id, type) {
@@ -1166,6 +1202,8 @@ function hardReload() {
 checkNewBatches();
 renderReview();
 updateBadges();
+// 起動時に結果をD1へ同期（初回は全履歴のバックフィル、以降は未送信分の再送）
+if (historyList.length > 0) syncResults();
 </script>
 </body>
 </html>
