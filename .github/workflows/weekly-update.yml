@@ -1,9 +1,11 @@
-name: 週次投稿自動生成
+# 自動スケジュール実行は 2026-07-13 に停止（CEO判断: 従量課金APIの自動使用をやめる）
+# 週次生成は Claude Code セッション内で行い、insert_batch.py で注入 → push する運用。
+# このワークフローは「手動実行ボタンを押した時だけ」動く保険として残してある
+# （動かすには ANTHROPIC_API_KEY シークレットの設定が必要）。
+name: 週次投稿自動生成（手動のみ）
 
 on:
-  schedule:
-    - cron: '0 20 * * 0'  # 毎週月曜 5:00 JST
-  workflow_dispatch:       # 手動実行ボタンも追加
+  workflow_dispatch:
     inputs:
       extra:
         description: '追加バッチを生成する（通常週に2回目）'
