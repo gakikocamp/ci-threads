@@ -25,7 +25,9 @@ JST = timezone(timedelta(hours=9))
 MODEL = "claude-opus-4-8"  # コスト重視なら "claude-sonnet-5"
 POST_COUNT = 40
 CTA_COUNT = 5
+BUZZ_COUNT = 4  # 国産応援タグを使う投稿の件数
 RESULTS_URL = os.environ.get("RESULTS_URL", "https://ci-threads.pages.dev/api/results")
+BUZZ_URL = os.environ.get("BUZZ_URL", "https://ci-threads.pages.dev/api/buzz")
 
 # 自社導線の現在のメニュー（変わったらここを更新する）
 # 注意: 公開投稿に「◯%OFF」等の値引き訴求は出さない（ブランド方針）。特典は贈り物・案内の形で表現する
@@ -135,7 +137,61 @@ def build_learning_block(results):
 """
 
 
-def build_prompt(week_id, date_str, learning_block):
+def fetch_buzz_library():
+    """国産バズ・ライブラリ（他者の実バズ投稿）をD1同期APIから取得する。失敗しても週次生成は止めない。"""
+    try:
+        with urllib.request.urlopen(BUZZ_URL, timeout=20) as res:
+            data = json.loads(res.read().decode("utf-8"))
+        posts = data.get("posts", [])
+        print(f"国産バズ・ライブラリ: {len(posts)}件を取得")
+        return posts
+    except Exception as e:
+        print(f"⚠️ バズ・ライブラリの取得に失敗（型学習なしで続行）: {e}")
+        return []
+
+
+def build_buzz_block(buzz_posts):
+    """国産バズ・ライブラリ（実在の他者投稿）から「勝ちの型」学習ブロックを作る。"""
+    if len(buzz_posts) < 3:
+        return ""
+
+    by_tag = defaultdict(list)
+    for p in buzz_posts:
+        tag = (p.get("tag") or "その他").strip()
+        by_tag[tag].append(p)
+
+    lines = []
+    for tag, items in by_tag.items():
+        top = sorted(items, key=lambda p: p.get("likes") or 0, reverse=True)[:3]
+        if not top:
+            continue
+        lines.append(f"▼ #{tag}")
+        for p in top:
+            body = (p.get("body") or "").replace("\n", " ")[:160]
+            likes = p.get("likes") or 0
+            hook = p.get("hook_type") or "不明"
+            why = p.get("why_buzz") or ""
+            why_suffix = f"（{why}）" if why else ""
+            lines.append(f"- [{hook}] ❤️{likes} 「{body}」{why_suffix}")
+    tag_block = "\n".join(lines) if lines else "（データなし）"
+
+    hook_counts = defaultdict(int)
+    for p in buzz_posts:
+        hook_counts[(p.get("hook_type") or "不明").strip()] += 1
+    hook_line = " / ".join(
+        f"{h}×{n}" for h, n in sorted(hook_counts.items(), key=lambda kv: -kv[1])
+    ) or "（データなし）"
+
+    return f"""
+【国産バズ・ライブラリからの学習（実在の他者バズ投稿。型だけ盗み、文面は絶対に模倣・盗用しない）】
+{tag_block}
+
+▼ フック型の分布
+{hook_line}
+"""
+
+
+def build_prompt(week_id, date_str, learning_block, buzz_block):
     return f"""あなたはクリスタルインセンス（Crystal Incense）のThreads投稿専門家です。
 今週（{week_id} / {date_str}）の新しい投稿案を{POST_COUNT}個生成してください。
 
@@ -162,7 +218,7 @@ def build_prompt(week_id, date_str, learning_block):
 - フォロワー数より投稿単位の質で評価される → 毎投稿がフォロワー外に届くチャンス
 - テキストが主評価対象。人間味・体温・自然な口語が高評価。エンゲージメントベイト（いいね乞い）はペナルティ
 - 日本語圏は「共感・本音」の燃えないSNS。Instagramが表の世界観なら、Threadsは本音と裏側を見せるバックヤード
-{learning_block}
+{learning_block}{buzz_block}
 【投稿パターン15種（実績を踏まえて配分すること）】
 ①Dear Algo型 ②構造的絶滅型 ③余白型 ④水車静寂型 ⑤未完ストーリー型
 ⑥専門家裏側型 ⑦デジタルデトックス型 ⑧素材の叫び型 ⑨リプ完結型
@@ -186,6 +242,12 @@ def build_prompt(week_id, date_str, learning_block):
   バズを狙う本文の質は他の{POST_COUNT - CTA_COUNT}件と同じ基準を守ること
 - 残り{POST_COUNT - CTA_COUNT}件は "cta": false
 
+【国産応援ミッション（国産タグ投稿）】
+- {POST_COUNT}件中ちょうど{BUZZ_COUNT}件は、#国産を選ぼう / #国産を守ろう / #国産 / #国産メーカー品 のいずれかを tag に使う「国産応援」投稿にする
+- 文脈は「受け継ぐ・作り手の顔・選べる誇り・産地の一次情報」のみ。輸入品や他国への攻撃・排外表現・不安煽りは絶対禁止（ブランドは"燃えないSNS"の共感軸で戦う）
+- CIの一次情報（福岡県産・自然栽培の椨粉、電気を使わない水車製法、3代続く工場、屋久杉・八女杉）を絡め、「国産という言葉の中身」を見せる投稿にする
+- バズ・ライブラリの勝ちフック型を優先的に移植する（文面のコピーは禁止、構造だけ）
+
 【出力仕様】
 - posts配列にちょうど{POST_COUNT}件
 - idは {week_id}-001 〜 {week_id}-{POST_COUNT:03d}
@@ -205,6 +267,12 @@ def generate_posts(week_id, date_str):
     else:
         print("学習データ不足のため基本プロンプトで生成します（結果を記録すると次週から賢くなります）")
 
+    buzz_block = build_buzz_block(fetch_buzz_library())
+    if buzz_block:
+        print("国産バズ・ライブラリの型学習ブロックをプロンプトに注入しました")
+    else:
+        print("バズ・ライブラリのデータ不足のため型学習なしで生成します")
+
     client = anthropic.Anthropic(api_key=api_key)
     print(f"Claude API ({MODEL}) に接続中...")
 
@@ -213,7 +281,7 @@ def generate_posts(week_id, date_str):
         max_tokens=60000,
         thinking={"type": "adaptive"},
         output_config={"format": {"type": "json_schema", "schema": POSTS_SCHEMA}},
-        messages=[{"role": "user", "content": build_prompt(week_id, date_str, learning_block)}],
+        messages=[{"role": "user", "content": build_prompt(week_id, date_str, learning_block, buzz_block)}],
     ) as stream:
         message = stream.get_final_message()
 

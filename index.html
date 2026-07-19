@@ -205,6 +205,57 @@
 
     /* Separator */
     .sep { border: none; border-top: 1px solid var(--border); margin: 16px 0; }
+
+    /* Research view - quick collect form */
+    .form-row { margin-bottom: 12px; }
+    .form-row-3 { display: flex; gap: 8px; }
+    .form-row-3 > div { flex: 1; }
+    .form-label { display: block; font-size: 11px; font-weight: 600; color: var(--muted); margin-bottom: 4px; }
+    .form-input {
+      width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--border);
+      background: var(--bg); font-size: 14px; font-family: inherit; color: var(--text);
+    }
+    .form-textarea { resize: vertical; min-height: 80px; line-height: 1.6; }
+
+    /* Tag filter chips */
+    .chip-filter-row { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; }
+    .chip-filter {
+      font-size: 12px; font-weight: 600; padding: 6px 12px; border-radius: 20px;
+      background: var(--surface); color: var(--muted); border: 1px solid var(--border);
+      font-family: inherit; cursor: pointer;
+    }
+    .chip-filter.active { background: var(--primary); color: white; border-color: var(--primary); }
+
+    /* Buzz library cards */
+    .buzz-card {
+      background: var(--surface); border-radius: 16px; padding: 17px;
+      margin-bottom: 12px; box-shadow: var(--shadow); border: 1px solid var(--border);
+    }
+    .buzz-meta { display: flex; align-items: center; gap: 6px; margin-bottom: 10px; flex-wrap: wrap; }
+    .buzz-body {
+      font-size: 14px; line-height: 1.75; color: var(--text);
+      white-space: pre-wrap; word-break: break-word; margin-bottom: 6px;
+    }
+    .buzz-body.clamp {
+      display: -webkit-box; -webkit-line-clamp: 8; -webkit-box-orient: vertical; overflow: hidden;
+    }
+    .buzz-expand { font-size: 12px; color: var(--primary); font-weight: 700; cursor: pointer; margin-bottom: 10px; }
+    .buzz-stats { display: flex; gap: 12px; font-size: 12px; color: var(--muted); margin-bottom: 8px; }
+    .buzz-why { font-size: 12px; color: var(--muted); background: var(--bg); padding: 8px 10px; border-radius: 8px; margin-bottom: 10px; line-height: 1.6; }
+    .buzz-actions { display: flex; gap: 7px; flex-wrap: wrap; }
+    .buzz-link {
+      text-decoration: none; display: inline-flex; align-items: center;
+    }
+
+    /* Dashboard bars */
+    .dash-row { margin-bottom: 10px; }
+    .dash-row-label { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; margin-bottom: 4px; }
+    .dash-bar-track { background: var(--bg); border-radius: 6px; height: 8px; overflow: hidden; }
+    .dash-bar-fill { background: var(--primary); height: 100%; border-radius: 6px; }
+    .dash-subhead { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase;
+      letter-spacing: 0.6px; margin: 14px 0 8px; }
+    .dash-subhead:first-child { margin-top: 0; }
+    .dash-empty { font-size: 12px; color: var(--muted); line-height: 1.7; }
   </style>
 </head>
 <body>
@@ -258,6 +309,88 @@
         </div>
       </div>
     </div>
+
+    <!-- 研究 -->
+    <div id="view-research" class="view">
+      <div class="section-header">🔍 国産バズ・リサーチ</div>
+
+      <!-- a) クイック収集フォーム -->
+      <div class="gen-card">
+        <h3>📥 バズ投稿をクイック収集</h3>
+        <p>Threadsで見つけた「#国産」系のバズ投稿をコピペで登録します。</p>
+        <div class="form-row">
+          <label class="form-label">投稿URL（任意）</label>
+          <input type="text" id="bz-url" class="form-input" placeholder="https://www.threads.net/...">
+        </div>
+        <div class="form-row">
+          <label class="form-label">投稿本文 *</label>
+          <textarea id="bz-body" class="form-input form-textarea" placeholder="投稿本文をペースト" rows="4"></textarea>
+        </div>
+        <div class="form-row">
+          <label class="form-label">投稿者（任意）</label>
+          <input type="text" id="bz-author" class="form-input" placeholder="@なしでもOK">
+        </div>
+        <div class="form-row">
+          <label class="form-label">タグ</label>
+          <select id="bz-tag" class="form-input">
+            <option value="国産">#国産</option>
+            <option value="国産を守ろう">#国産を守ろう</option>
+            <option value="国産を選ぼう">#国産を選ぼう</option>
+            <option value="国産メーカー品">#国産メーカー品</option>
+            <option value="その他">その他</option>
+          </select>
+        </div>
+        <div class="form-row form-row-3">
+          <div>
+            <label class="form-label">❤️ いいね</label>
+            <input type="number" id="bz-likes" class="form-input" placeholder="0" min="0" inputmode="numeric">
+          </div>
+          <div>
+            <label class="form-label">💬 リプ</label>
+            <input type="number" id="bz-replies" class="form-input" placeholder="0" min="0" inputmode="numeric">
+          </div>
+          <div>
+            <label class="form-label">🔁 リポスト</label>
+            <input type="number" id="bz-reposts" class="form-input" placeholder="0" min="0" inputmode="numeric">
+          </div>
+        </div>
+        <div class="form-row">
+          <label class="form-label">フック型</label>
+          <select id="bz-hook" class="form-input">
+            <option value="意外性">意外性</option>
+            <option value="問いかけ">問いかけ</option>
+            <option value="数字×メリット">数字×メリット</option>
+            <option value="否定形・損失回避">否定形・損失回避</option>
+            <option value="逆説">逆説</option>
+            <option value="告白">告白</option>
+            <option value="結論先出し">結論先出し</option>
+            <option value="ストーリー">ストーリー</option>
+            <option value="その他">その他</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <label class="form-label">なぜバズったか一言メモ（任意）</label>
+          <input type="text" id="bz-why" class="form-input" placeholder="例: 数字が具体的で信頼感がある">
+        </div>
+        <button class="btn-gen-main" onclick="saveBuzzPost()">💾 ライブラリに保存</button>
+      </div>
+
+      <!-- b) ライブラリ一覧 -->
+      <div class="section-header" id="buzz-section-header">ライブラリ</div>
+      <div class="chip-filter-row" id="buzz-tag-filter"></div>
+      <div id="buzz-list"></div>
+
+      <!-- c) 傾向ダッシュボード -->
+      <div class="section-header">📈 傾向ダッシュボード</div>
+      <div class="gen-card">
+        <h3>ライブラリの傾向</h3>
+        <div id="buzz-dashboard-lib"></div>
+      </div>
+      <div class="gen-card">
+        <h3>自社投稿の傾向</h3>
+        <div id="buzz-dashboard-own"></div>
+      </div>
+    </div>
   </div>
 
   <div class="tab-bar">
@@ -276,6 +409,10 @@
     <button class="tab-btn" onclick="switchTab('generate',this)">
       <div class="tab-icon">📋</div>
       <span>情報</span>
+    </button>
+    <button class="tab-btn" onclick="switchTab('research',this)">
+      <div class="tab-icon">🔍</div>
+      <span>研究</span>
     </button>
   </div>
 </div>
@@ -1325,6 +1462,7 @@ function switchTab(tab, btn) {
   if (tab === 'stock')    renderStock();
   if (tab === 'history')  renderHistory();
   if (tab === 'generate') renderGenerateStats();
+  if (tab === 'research') openResearchTab();
 }
 
 // ---- Badges ----
@@ -1608,6 +1746,304 @@ function hardReload() {
   setTimeout(() => window.location.reload(), 500);
 }
 
+// ============================================================
+// 研究タブ（国産バズ・リサーチライブラリ）
+// ============================================================
+const BUZZ_URL = '/api/buzz';
+const BUZZ_TAGS = ['国産', '国産を守ろう', '国産を選ぼう', '国産メーカー品', 'その他'];
+let buzzLibrary = loadState('ci_buzz_lib',     '[]'); // ライブラリ本体（サーバー同期済み＋未同期含む）
+let buzzPending = loadState('ci_buzz_pending', '[]'); // 未同期のid一覧
+let buzzTagFilter = 'all';
+let buzzExpanded = {}; // id -> 展開表示中か
+
+function saveBuzzLocal() {
+  localStorage.setItem('ci_buzz_lib',     JSON.stringify(buzzLibrary));
+  localStorage.setItem('ci_buzz_pending', JSON.stringify(buzzPending));
+}
+
+// ---- id生成（URLがあれば正規化ハッシュ、なければ本文先頭50字のハッシュ）----
+function hashStr(s) {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+  return h.toString(36);
+}
+function normalizeUrl(u) {
+  return u.trim().replace(/^https?:\/\//, '').replace(/\/+$/, '').split('?')[0].split('#')[0];
+}
+function makeBuzzId(url, body) {
+  const src = (url && url.trim()) ? normalizeUrl(url) : (body || '').slice(0, 50);
+  return 'bz-' + hashStr(src);
+}
+
+// ---- クイック収集フォーム ----
+function saveBuzzPost() {
+  const body = document.getElementById('bz-body').value.trim();
+  if (!body) { showToast('本文を入力してください'); return; }
+  const url    = document.getElementById('bz-url').value.trim();
+  const author = document.getElementById('bz-author').value.trim().replace(/^@/, '');
+  const tag    = document.getElementById('bz-tag').value;
+  const hookType = document.getElementById('bz-hook').value;
+  const whyBuzz  = document.getElementById('bz-why').value.trim();
+  const likes   = parseInt(document.getElementById('bz-likes').value, 10);
+  const replies = parseInt(document.getElementById('bz-replies').value, 10);
+  const reposts = parseInt(document.getElementById('bz-reposts').value, 10);
+
+  const id  = makeBuzzId(url, body);
+  const now = Date.now();
+  const entry = {
+    id, url: url || null, author: author || null, tag, body,
+    likes:   Number.isFinite(likes)   ? likes   : null,
+    replies: Number.isFinite(replies) ? replies : null,
+    reposts: Number.isFinite(reposts) ? reposts : null,
+    hookType, pattern: null, whyBuzz: whyBuzz || null,
+    source: 'manual', collectedAt: now, updatedAt: now
+  };
+
+  const i = buzzLibrary.findIndex(p => p.id === id);
+  if (i >= 0) buzzLibrary[i] = { ...buzzLibrary[i], ...entry, collectedAt: buzzLibrary[i].collectedAt || now };
+  else buzzLibrary.unshift(entry);
+
+  if (!buzzPending.includes(id)) buzzPending.push(id);
+  saveBuzzLocal();
+  clearBuzzForm();
+  renderBuzzList();
+  renderBuzzDashboard();
+
+  syncBuzzPending().then(ok => {
+    showToast(ok ? '✅ ライブラリに保存しました' : '📥 ローカルに保存しました（後で自動的に再送します）');
+  });
+}
+
+function clearBuzzForm() {
+  ['bz-url', 'bz-body', 'bz-author', 'bz-likes', 'bz-replies', 'bz-reposts', 'bz-why'].forEach(id => {
+    document.getElementById(id).value = '';
+  });
+  document.getElementById('bz-tag').value  = '国産';
+  document.getElementById('bz-hook').value = '意外性';
+}
+
+// ---- 未同期キューの再送 ----
+async function syncBuzzPending() {
+  if (buzzPending.length === 0) return true;
+  const posts = buzzPending.map(id => buzzLibrary.find(p => p.id === id)).filter(Boolean);
+  if (posts.length === 0) { buzzPending = []; saveBuzzLocal(); return true; }
+  try {
+    const res = await fetch(BUZZ_URL, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-sync-key': SYNC_KEY },
+      body: JSON.stringify({ posts })
+    });
+    if (res.ok) {
+      buzzPending = [];
+      saveBuzzLocal();
+      return true;
+    }
+  } catch { /* オフライン等。次回タブオープン／オンライン復帰時に再送 */ }
+  return false;
+}
+
+// ---- サーバーから取得してローカルキャッシュとマージ（id重複はサーバー優先）----
+async function fetchBuzzLibrary() {
+  try {
+    const res = await fetch(BUZZ_URL);
+    if (!res.ok) return;
+    const data = await res.json();
+    const serverPosts = Array.isArray(data.posts) ? data.posts : [];
+    const serverMap = new Map(serverPosts.map(p => [p.id, {
+      id: p.id, url: p.url, author: p.author, tag: p.tag, body: p.body,
+      likes: p.likes, replies: p.replies, reposts: p.reposts,
+      hookType: p.hook_type, pattern: p.pattern, whyBuzz: p.why_buzz,
+      source: p.source, collectedAt: p.collected_at, updatedAt: p.updated_at
+    }]));
+    const merged = [...serverMap.values()];
+    buzzLibrary.forEach(local => { if (!serverMap.has(local.id)) merged.push(local); });
+    buzzLibrary = merged;
+    saveBuzzLocal();
+    renderBuzzList();
+    renderBuzzDashboard();
+  } catch { /* オフライン等。ローカルキャッシュの表示を維持 */ }
+}
+
+function openResearchTab() {
+  renderBuzzList();
+  renderBuzzDashboard();
+  syncBuzzPending().then(() => fetchBuzzLibrary());
+}
+
+// ---- Render: タグ絞り込みチップ ----
+function renderBuzzTagFilter() {
+  const el = document.getElementById('buzz-tag-filter');
+  const tags = ['all', ...BUZZ_TAGS];
+  el.innerHTML = tags.map(t => {
+    const label = t === 'all' ? 'すべて' : t;
+    return `<button class="chip-filter ${buzzTagFilter === t ? 'active' : ''}" onclick="setBuzzTagFilter('${t}')">${esc(label)}</button>`;
+  }).join('');
+}
+function setBuzzTagFilter(t) {
+  buzzTagFilter = t;
+  renderBuzzList();
+}
+
+function buzzNeedsClamp(body) {
+  return body.length > 160 || body.split('\n').length > 8;
+}
+
+// ---- Render: ライブラリ一覧 ----
+function renderBuzzList() {
+  renderBuzzTagFilter();
+  const el = document.getElementById('buzz-list');
+  const sh = document.getElementById('buzz-section-header');
+  let list = [...buzzLibrary];
+  if (buzzTagFilter !== 'all') list = list.filter(p => p.tag === buzzTagFilter);
+  list.sort((a, b) => (b.likes || 0) - (a.likes || 0));
+
+  if (list.length === 0) {
+    sh.textContent = 'ライブラリ';
+    el.innerHTML = `<div class="empty">
+      <div class="empty-icon">🔍</div>
+      <p>まだ収集した投稿がありません<br>上のフォームからバズ投稿を登録してください</p>
+    </div>`;
+    return;
+  }
+  sh.textContent = `ライブラリ ${list.length}件（いいね数順）`;
+  el.innerHTML = list.map(p => {
+    const clampNeeded = buzzNeedsClamp(p.body || '');
+    const expanded = !!buzzExpanded[p.id];
+    return `
+    <div class="buzz-card" id="bz-card-${p.id}">
+      <div class="buzz-meta">
+        ${p.tag ? `<span class="chip">#${esc(p.tag)}</span>` : ''}
+        ${p.hookType ? `<span class="chip chip-confidence">${esc(p.hookType)}</span>` : ''}
+        ${p.author ? `<span style="font-size:12px;color:var(--muted);margin-left:auto;">@${esc(p.author)}</span>` : ''}
+      </div>
+      <div class="buzz-body ${(clampNeeded && !expanded) ? 'clamp' : ''}">${nl(p.body)}</div>
+      ${clampNeeded ? `<div class="buzz-expand" onclick="toggleBuzzExpand('${p.id}')">${expanded ? '折りたたむ ▲' : 'もっと見る ▼'}</div>` : ''}
+      <div class="buzz-stats">
+        <span>❤️ ${p.likes ?? '-'}</span>
+        <span>💬 ${p.replies ?? '-'}</span>
+        <span>🔁 ${p.reposts ?? '-'}</span>
+      </div>
+      ${p.whyBuzz ? `<div class="buzz-why">💡 ${esc(p.whyBuzz)}</div>` : ''}
+      <div class="buzz-actions">
+        <button class="btn-sm btn-copy-main" id="bzcp-${p.id}" onclick="copyBuzzPattern('${p.id}')">🧬 型をコピー</button>
+        ${p.url ? `<a href="${esc(p.url)}" target="_blank" rel="noopener" class="btn-sm btn-copy-reply buzz-link">開く</a>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function toggleBuzzExpand(id) {
+  buzzExpanded[id] = !buzzExpanded[id];
+  renderBuzzList();
+}
+
+function copyBuzzPattern(id) {
+  const p = buzzLibrary.find(p => p.id === id);
+  if (!p) return;
+  const text = `【参考バズ投稿】フック型:${p.hookType || '不明'} / タグ:${p.tag || '不明'} / ❤️${p.likes ?? 0}\n本文:${p.body}\nなぜバズった:${p.whyBuzz || '不明'}\nこの型でクリスタルインセンス（国産お香）の投稿を作って`;
+  const fallback = () => {
+    const ta = document.createElement('textarea');
+    ta.value = text; ta.style.cssText = 'position:fixed;opacity:0;';
+    document.body.appendChild(ta); ta.focus(); ta.select();
+    document.execCommand('copy'); ta.remove();
+    flashBuzzCopy(id);
+  };
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(text).then(() => flashBuzzCopy(id)).catch(fallback);
+  } else fallback();
+}
+
+function flashBuzzCopy(id) {
+  const btn = document.getElementById('bzcp-' + id);
+  if (btn) {
+    btn.textContent = 'コピー済！'; btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = '🧬 型をコピー'; btn.classList.remove('copied'); }, 2000);
+  }
+  showToast('型をコピーしました');
+}
+
+// ---- Render: 傾向ダッシュボード ----
+function renderBuzzDashboard() {
+  renderBuzzDashboardLib();
+  renderBuzzDashboardOwn();
+}
+
+function renderBuzzDashboardLib() {
+  const el = document.getElementById('buzz-dashboard-lib');
+  if (buzzLibrary.length === 0) {
+    el.innerHTML = `<div class="dash-empty">まだライブラリにデータがありません</div>`;
+    return;
+  }
+  // タグ別 件数・平均いいね
+  const tagStats = {};
+  buzzLibrary.forEach(p => {
+    const t = p.tag || 'その他';
+    if (!tagStats[t]) tagStats[t] = { n: 0, likesSum: 0 };
+    tagStats[t].n++;
+    tagStats[t].likesSum += (p.likes || 0);
+  });
+  const maxTagN = Math.max(...Object.values(tagStats).map(s => s.n));
+  const tagRows = Object.entries(tagStats)
+    .sort((a, b) => b[1].n - a[1].n)
+    .map(([t, s]) => {
+      const avg = Math.round(s.likesSum / s.n);
+      const pct = Math.round(s.n / maxTagN * 100);
+      return `<div class="dash-row">
+        <div class="dash-row-label"><span>#${esc(t)}（${s.n}件）</span><span>平均❤️${avg}</span></div>
+        <div class="dash-bar-track"><div class="dash-bar-fill" style="width:${pct}%"></div></div>
+      </div>`;
+    }).join('');
+
+  // フック型の分布
+  const hookStats = {};
+  buzzLibrary.forEach(p => {
+    const h = p.hookType || '不明';
+    hookStats[h] = (hookStats[h] || 0) + 1;
+  });
+  const maxHook = Math.max(...Object.values(hookStats));
+  const hookRows = Object.entries(hookStats)
+    .sort((a, b) => b[1] - a[1])
+    .map(([h, n]) => {
+      const pct = Math.round(n / maxHook * 100);
+      return `<div class="dash-row">
+        <div class="dash-row-label"><span>${esc(h)}</span><span>${n}件</span></div>
+        <div class="dash-bar-track"><div class="dash-bar-fill" style="width:${pct}%;background:var(--accent);"></div></div>
+      </div>`;
+    }).join('');
+
+  el.innerHTML = `
+    <div class="dash-subhead">タグ別（件数・平均いいね）</div>
+    ${tagRows}
+    <div class="dash-subhead">フック型の分布</div>
+    ${hookRows}`;
+}
+
+function renderBuzzDashboardOwn() {
+  const el = document.getElementById('buzz-dashboard-own');
+  const labeled = historyList.filter(p => ['buzz', 'ok', 'miss'].includes(p.result));
+  if (labeled.length < 3) {
+    el.innerHTML = `<div class="dash-empty">結果を記録すると自社傾向が育ちます（現在${labeled.length}件）</div>`;
+    return;
+  }
+  const stats = {};
+  labeled.forEach(p => {
+    const pt = p.pattern || '不明';
+    if (!stats[pt]) stats[pt] = { buzz: 0, n: 0 };
+    stats[pt].n++;
+    if (p.result === 'buzz') stats[pt].buzz++;
+  });
+  const rows = Object.entries(stats)
+    .filter(([, s]) => s.n >= 2)
+    .sort((a, b) => (b[1].buzz / b[1].n) - (a[1].buzz / a[1].n))
+    .map(([pt, s]) => {
+      const rate = Math.round(s.buzz / s.n * 100);
+      return `<div class="dash-row">
+        <div class="dash-row-label"><span>${esc(pt)}</span><span>バズ率${rate}%（${s.n}件）</span></div>
+        <div class="dash-bar-track"><div class="dash-bar-fill" style="width:${rate}%"></div></div>
+      </div>`;
+    }).join('');
+  el.innerHTML = rows || `<div class="dash-empty">2件以上記録があるパターンがまだありません</div>`;
+}
 
 // ---- Init ----
 checkNewBatches();
@@ -1615,6 +2051,12 @@ renderReview();
 updateBadges();
 // 起動時に結果をD1へ同期（初回は全履歴のバックフィル、以降は未送信分の再送）
 if (historyList.length > 0) syncResults();
+// 起動時にバズ・ライブラリの未同期分を再送。オンライン復帰時も同様に再送する
+if (buzzPending.length > 0) syncBuzzPending();
+window.addEventListener('online', () => {
+  syncResults();
+  syncBuzzPending();
+});
 </script>
 </body>
 </html>
