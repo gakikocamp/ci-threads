@@ -856,9 +856,13 @@ function showToast(msg) {
 }
 
 // ---- Hard Reload ----
+// キャッシュを確実に回避して最新の index.html を取得する（?v=で新URL化）
 function hardReload() {
   showToast('最新版を取得中...');
-  setTimeout(() => window.location.reload(), 500);
+  setTimeout(() => {
+    const base = location.href.split('?')[0].split('#')[0];
+    location.replace(base + '?v=' + Date.now());
+  }, 400);
 }
 
 // ============================================================
