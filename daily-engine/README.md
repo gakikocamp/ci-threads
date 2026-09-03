@@ -28,6 +28,16 @@
 
 ## 導入手順（Mac Studio のターミナルで実行）
 
+### STEP 0: まず対話で1回テスト（拡張ペアリング＆権限の確認・重要）
+launchdの無人実行に任せる前に、対話で一度動かして「Chrome拡張がつながる／ツールが動く」ことを確認する。
+```bash
+# Mac Studio で Chrome を開き、Claude拡張にサインイン＆Threadsに@crystal_insenceでログインしておく
+cd "/Users/gakipro/Library/Mobile Documents/com~apple~CloudDocs/開発用/SecondGaki/クリスタルインセンス/threads-app"
+claude            # 対話起動 → 「list_connected_browsers で Chrome が見えるか確認して」と打つ
+# 見えれば OK。見えなければ Chrome/拡張のサインインを確認。
+```
+これが通れば、以下の無人化に進む。
+
 ```bash
 # 1) スクリプトに実行権限
 chmod +x "/Users/gakipro/Library/Mobile Documents/com~apple~CloudDocs/開発用/SecondGaki/クリスタルインセンス/threads-app/daily-engine/run-daily.sh"

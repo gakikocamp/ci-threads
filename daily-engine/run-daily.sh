@@ -30,7 +30,7 @@ read -r -d '' PROMPT <<'EOF'
 前提メモリ: 運用ルール・CIの1000+分析・勝ち式・収集の技術メモは「クリスタルインセンス threads-app 運用手順」を必ず参照すること。
 
 手順:
-(1) Chromeブラウザを選択し、Threadsの @crystal_insence と @gakikocamp の直近投稿を収集する
+(1) 接続中のChromeを選択（list_connected_browsers。複数あればThreadsに @crystal_insence でログイン済みのものを選ぶ）し、Threadsの @crystal_insence と @gakikocamp の直近投稿を収集する
     （いいね/リプ/リポスト、可能なら各投稿の「インサイト」タブを開いて view/リーチも取得）。
     仮想リストのストールに注意（setInterval(__grab,350)方式・右端スクロール・段階スクロール）。
 (2) 前日〜数日で新たに settle した自社投稿を判定し、いいね数から result を付ける
@@ -57,8 +57,12 @@ EOF
 
 # Claude Code headless 実行（非対話・出力はログへ）
 # 注: MCPブラウザ(claude-in-chrome)を使うため、このMacのClaude Codeに拡張が
-#     ペアリング済みであること。権限で止まる場合は README の許可設定を参照。
-claude -p "$PROMPT" >> "$LOG" 2>&1
+#     ペアリング済みであること。
+# --dangerously-skip-permissions: 無人launchd実行では権限プロンプトに応答できず止まるため、
+#   ツール許可をスキップして走らせる。実行内容は上記PROMPTに限定される想定。
+#   （リスクを避けたい場合は、この一行を通常の `claude -p "$PROMPT"` に戻し、
+#    .claude/settings.json でブラウザMCP/Bash(curl)/Read/Editを個別allow設定する）
+claude -p --dangerously-skip-permissions "$PROMPT" >> "$LOG" 2>&1
 CODE=$?
 
 echo "===== 終了 code=$CODE $(date '+%Y-%m-%d %H:%M:%S') =====" >> "$LOG"
