@@ -256,6 +256,29 @@
       letter-spacing: 0.6px; margin: 14px 0 8px; }
     .dash-subhead:first-child { margin-top: 0; }
     .dash-empty { font-size: 12px; color: var(--muted); line-height: 1.7; }
+
+    /* 今日の推奨投稿カード */
+    .daily-card {
+      background: linear-gradient(135deg, #fff8ef, var(--surface));
+      border-left: 4px solid var(--accent); border-radius: 16px; padding: 18px;
+      margin-bottom: 14px; box-shadow: var(--shadow);
+    }
+    .daily-head { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; }
+    .daily-title { font-size: 15px; font-weight: 700; color: var(--text); }
+    .daily-date { font-size: 11px; color: var(--muted); margin-left: auto; }
+    .daily-body {
+      font-size: 15px; line-height: 1.85; color: var(--text);
+      white-space: pre-wrap; word-break: break-word;
+    }
+    .daily-reply {
+      margin-top: 12px; padding: 10px 14px;
+      background: var(--bg); border-radius: 10px; border-left: 3px solid var(--primary);
+    }
+    .daily-why, .daily-insight {
+      margin-top: 10px; font-size: 12px; color: var(--muted);
+      background: var(--bg); border-radius: 8px; padding: 8px 10px; line-height: 1.6;
+    }
+    .daily-actions { display: flex; gap: 7px; flex-wrap: wrap; margin-top: 14px; }
   </style>
 </head>
 <body>
@@ -274,6 +297,7 @@
   <div class="content">
     <!-- レビュー -->
     <div id="view-review" class="view active">
+      <div id="daily-rec-area"></div>
       <div id="batch-banner-area"></div>
       <div class="section-header" id="review-section-header"></div>
       <div id="review-list"></div>
@@ -1715,6 +1739,10 @@ let historyList   = loadState('ci_history', '[]');
 let loadedBatches = loadState('ci_batches', '[]');
 let currentTab    = 'review';
 
+// ---- 今日の推奨投稿 ----
+const DAILY_URL = '/api/daily';
+let dailyRec = loadState('ci_daily', 'null'); // サーバー同期済みキャッシュ（{ date, mode, pattern, theme, body, reply, tag, confidence, rationale, insight_summary } | null）
+
 // ---- Startup: check for new batches ----
 function checkNewBatches() {
   const newBatches = WEEKLY_BATCHES.filter(b => !loadedBatches.includes(b.batchId));
@@ -1786,6 +1814,75 @@ function setBadge(id, n) {
   if (!el) return;
   if (n > 0) { el.style.display = 'flex'; el.textContent = n; }
   else el.style.display = 'none';
+}
+
+// ---- 今日の推奨投稿：取得・描画・コピー ----
+async function fetchDailyRec() {
+  try {
+    const res = await fetch(DAILY_URL);
+    if (!res.ok) return;
+    const data = await res.json();
+    dailyRec = data.rec || null;
+    localStorage.setItem('ci_daily', JSON.stringify(dailyRec));
+    renderDailyRec();
+  } catch { /* オフライン等。キャッシュ表示を維持 */ }
+}
+
+function renderDailyRec() {
+  const el = document.getElementById('daily-rec-area');
+  if (!el) return;
+  const r = dailyRec;
+  if (!r) { el.innerHTML = ''; return; }
+  const confChip = r.mode === 'safety'
+    ? '<span class="chip" style="background:#fff3e0;color:#e65100;">⚠️配慮モード</span>'
+    : (r.confidence != null ? `<span class="chip chip-confidence">確度 ${r.confidence}%</span>` : '');
+  el.innerHTML = `
+    <div class="daily-card">
+      <div class="daily-head">
+        <span class="daily-title">☀️ 今日の推奨投稿</span>
+        ${r.date ? `<span class="daily-date">${esc(r.date)}</span>` : ''}
+        ${confChip}
+      </div>
+      ${r.pattern ? `<div style="margin-bottom:10px;"><span class="chip">${esc(r.pattern)}</span></div>` : ''}
+      <div class="daily-body">${nl(r.body)}</div>
+      ${r.reply ? `<div class="daily-reply">
+        <div class="reply-label">追いリプ</div>
+        <div class="reply-text">${nl(r.reply)}</div>
+      </div>` : ''}
+      ${r.rationale ? `<div class="daily-why"><strong>💡 なぜ今日これか</strong><br>${esc(r.rationale)}</div>` : ''}
+      ${r.insight_summary ? `<div class="daily-insight"><strong>📊 前日の成績</strong><br>${esc(r.insight_summary)}</div>` : ''}
+      <div class="daily-actions">
+        <button class="btn-sm btn-copy-main" id="dcp-body" onclick="copyDaily('body')">📋 本文コピー</button>
+        ${r.reply ? `<button class="btn-sm btn-copy-reply" onclick="copyDaily('reply')">追いリプコピー</button>` : ''}
+      </div>
+    </div>`;
+}
+
+function copyDaily(type) {
+  if (!dailyRec) return;
+  const text = type === 'reply' ? dailyRec.reply : dailyRec.body;
+  if (!text) return;
+  const fallback = () => {
+    const ta = document.createElement('textarea');
+    ta.value = text; ta.style.cssText = 'position:fixed;opacity:0;';
+    document.body.appendChild(ta); ta.focus(); ta.select();
+    document.execCommand('copy'); ta.remove();
+    flashDailyCopy(type);
+  };
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(text).then(() => flashDailyCopy(type)).catch(fallback);
+  } else fallback();
+}
+
+function flashDailyCopy(type) {
+  if (type === 'body') {
+    const btn = document.getElementById('dcp-body');
+    if (btn) {
+      btn.textContent = 'コピー済！'; btn.classList.add('copied');
+      setTimeout(() => { btn.textContent = '📋 本文コピー'; btn.classList.remove('copied'); }, 2000);
+    }
+  }
+  showToast(type === 'reply' ? '追いリプをコピーしました' : '今日の推奨投稿をコピーしました');
 }
 
 // ---- Render: Review ----
@@ -2410,6 +2507,8 @@ function renderBuzzDashboardOwn() {
 // ---- Init ----
 checkNewBatches();
 renderReview();
+renderDailyRec();
+fetchDailyRec();
 updateBadges();
 // 起動時に結果をD1へ同期（初回は全履歴のバックフィル、以降は未送信分の再送）
 if (historyList.length > 0) syncResults();
