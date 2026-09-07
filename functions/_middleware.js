@@ -6,6 +6,15 @@ const BLOCKED = [
   /requirements\.txt$/i,
   /^\/\.github\//,
   /^\/\.wrangler\//,
+  // 灯守（X運用機関）の内部ファイル: 憲法・リンター・Worker・エンジン
+  /^\/guardrails\//,
+  /^\/x\//,
+  /^\/ci-x-cron\//,
+  /^\/daily-engine/,
+  /\.mjs$/i,
+  /\.md$/i,
+  /\.plist$/i,
+  /\.sh$/i,
 ];
 
 export async function onRequest(context) {

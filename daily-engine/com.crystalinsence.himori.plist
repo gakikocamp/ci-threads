@@ -3,25 +3,25 @@
 <plist version="1.0">
 <dict>
 	<key>Label</key>
-	<string>com.crystalinsence.dailybuzz</string>
+	<string>com.crystalinsence.himori</string>
 	<key>ProgramArguments</key>
 	<array>
 		<string>/bin/zsh</string>
-		<string>/Users/gakipro/Library/Mobile Documents/com~apple~CloudDocs/開発用/SecondGaki/クリスタルインセンス/threads-app/daily-engine/run-daily.sh</string>
+		<string>/Users/gakipro/Library/Mobile Documents/com~apple~CloudDocs/開発用/SecondGaki/クリスタルインセンス/threads-app/daily-engine/run-x.sh</string>
 	</array>
 	<key>StartCalendarInterval</key>
 	<dict>
 		<key>Hour</key>
 		<integer>6</integer>
 		<key>Minute</key>
-		<integer>54</integer>
+		<integer>30</integer>
 	</dict>
 	<key>RunAtLoad</key>
 	<false/>
 	<key>StandardOutPath</key>
-	<string>/Users/gakipro/Library/Mobile Documents/com~apple~CloudDocs/開発用/SecondGaki/クリスタルインセンス/threads-app/daily-engine/logs/launchd.out.log</string>
+	<string>/Users/gakipro/Library/Mobile Documents/com~apple~CloudDocs/開発用/SecondGaki/クリスタルインセンス/threads-app/daily-engine/logs/himori.out.log</string>
 	<key>StandardErrorPath</key>
-	<string>/Users/gakipro/Library/Mobile Documents/com~apple~CloudDocs/開発用/SecondGaki/クリスタルインセンス/threads-app/daily-engine/logs/launchd.err.log</string>
+	<string>/Users/gakipro/Library/Mobile Documents/com~apple~CloudDocs/開発用/SecondGaki/クリスタルインセンス/threads-app/daily-engine/logs/himori.err.log</string>
 	<key>EnvironmentVariables</key>
 	<dict>
 		<key>PATH</key>

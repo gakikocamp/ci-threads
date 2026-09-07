@@ -281,6 +281,48 @@
     .daily-actions { display: flex; gap: 7px; flex-wrap: wrap; margin-top: 14px; }
     /* 今日の候補（ランキング表示）用の順位バッジ */
     .daily-rank { background: var(--primary); color: #fff; }
+
+    /* X（灯守）タブ */
+    .x-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+    .x-chip-warn { background: #fff3e0; color: #e65100; }
+    .x-chip-ok { background: var(--primary-light); color: var(--primary); }
+    .x-chip-off { background: #eee; color: #888; }
+    .x-units { font-size: 11px; color: var(--muted); margin-left: auto; }
+    .x-units.over { color: var(--danger); font-weight: 700; }
+    .x-thread { margin-top: 10px; border-left: 3px solid var(--border); padding-left: 12px; }
+    .x-thread-item { font-size: 13.5px; line-height: 1.75; white-space: pre-wrap; color: var(--text); padding: 6px 0; border-bottom: 1px dashed var(--border); }
+    .x-thread-item:last-child { border-bottom: none; }
+    .x-lint { margin-top: 8px; font-size: 11.5px; color: #e65100; line-height: 1.6; }
+    .x-posted { opacity: .55; }
+    .x-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+    .x-table th { text-align: left; font-weight: 600; color: var(--muted); font-size: 11px; padding: 6px 6px; border-bottom: 1px solid var(--border); }
+    .x-table td { padding: 8px 6px; border-bottom: 1px solid var(--border); vertical-align: top; }
+    .x-up { color: var(--success); font-weight: 700; }
+    .x-down { color: var(--danger); }
+    .x-form { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
+    .x-form input, .x-form select { flex: 1; min-width: 110px; padding: 9px 10px; border: 1px solid var(--border); border-radius: 8px; font-size: 14px; font-family: inherit; }
+    .x-radar-post { font-size: 12.5px; line-height: 1.7; padding: 8px 0; border-bottom: 1px dashed var(--border); white-space: pre-wrap; word-break: break-word; }
+    .x-radar-post .meta { font-size: 11px; color: var(--muted); }
+    .x-log { font-size: 11px; color: var(--muted); line-height: 1.6; font-family: ui-monospace, Menlo, monospace; }
+    /* v3: レシピのダイヤル・学習台帳・不変条件 */
+    .x-chip-exp { background: #ede7f6; color: #5e35b1; }
+    .x-dials { display: flex; flex-wrap: wrap; gap: 5px; margin: 0 0 10px; }
+    .x-dial { font-size: 10.5px; color: var(--muted); background: var(--bg); border: 1px solid var(--border);
+      border-radius: 4px; padding: 1px 7px; letter-spacing: .02em; }
+    .x-dial.fact { color: var(--accent); border-color: var(--accent); }
+    .x-dial.ng { color: var(--danger); border-color: var(--danger); }
+    .x-ledger-row { font-size: 12.5px; line-height: 1.75; padding: 7px 0; border-bottom: 1px dashed var(--border); }
+    .x-ledger-row:last-child { border-bottom: none; }
+    .x-ledger-date { display: inline-block; min-width: 42px; font-family: ui-monospace, Menlo, monospace;
+      font-size: 11px; color: var(--muted); }
+    .x-streak { font-size: 12px; color: var(--muted); background: var(--bg); border-radius: 8px;
+      padding: 8px 12px; margin-bottom: 12px; }
+    .x-streak.ok { background: var(--primary-light); color: var(--primary); font-weight: 600; }
+    .x-recipe { padding: 8px 0; border-bottom: 1px dashed var(--border); font-size: 12.5px; }
+    .x-recipe:last-child { border-bottom: none; }
+    .x-recipe.ng { opacity: .55; }
+    .x-recipe b { margin-right: 6px; }
+    .x-recipe-why { font-size: 11px; color: var(--muted); line-height: 1.6; margin-top: 4px; }
   </style>
 </head>
 <body>
@@ -419,6 +461,12 @@
     </div>
   </div>
 
+    <!-- X（灯守） -->
+    <div id="view-x" class="view">
+      <div id="x-root"><div class="dash-empty">読み込み中…</div></div>
+    </div>
+  </div>
+
   <div class="tab-bar">
     <button class="tab-btn active" onclick="switchTab('review',this)">
       <div class="tab-icon">📥<span class="badge" id="b-review" style="display:none"></span></div>
@@ -439,6 +487,10 @@
     <button class="tab-btn" onclick="switchTab('research',this)">
       <div class="tab-icon">🔍</div>
       <span>研究</span>
+    </button>
+    <button class="tab-btn" onclick="switchTab('x',this)">
+      <div class="tab-icon">🏮<span class="badge" id="b-x" style="display:none"></span></div>
+      <span>X</span>
     </button>
   </div>
 </div>
@@ -2164,6 +2216,7 @@ function switchTab(tab, btn) {
   if (tab === 'history')  renderHistory();
   if (tab === 'generate') renderGenerateStats();
   if (tab === 'research') openResearchTab();
+  if (tab === 'x')        openXTab();
 }
 
 // ---- Badges ----
@@ -2951,6 +3004,230 @@ function renderBuzzDashboardOwn() {
   if (hit > 0) save();
   localStorage.setItem(KEY, '1');
 })();
+
+// ============================================================
+// 【X（灯守）】今日の候補・成長レーダー・成績
+// 権限: 投稿済み/却下/監視リスト編集は x-admin-token（初回に入力 → localStorage 'ci_x_admin'）
+// 候補の生成はMac Studioの朝エンジン（x-writer-key）。このUIは読む・コピーする・記録するだけ
+// ============================================================
+let xState = { cands: null, stats: null, ledger: null, brief: null, recipes: null, loadedAt: 0 };
+let xShowLog = false;
+
+function xAdminToken() { return localStorage.getItem('ci_x_admin') || ''; }
+function xSetAdminToken() {
+  const t = prompt('X管理トークン（投稿済み記録・却下・監視リスト編集に必要）');
+  if (t === null) return;
+  localStorage.setItem('ci_x_admin', t.trim());
+  showToast(t.trim() ? '管理トークンを保存しました' : '管理トークンを削除しました');
+  renderXTab();
+}
+async function xAdminFetch(url, body) {
+  const token = xAdminToken();
+  if (!token) { xSetAdminToken(); return null; }
+  const res = await fetch(url, { method: 'POST', headers: { 'content-type': 'application/json', 'x-admin-token': token }, body: JSON.stringify(body) });
+  const data = await res.json().catch(() => ({}));
+  if (res.status === 403) { showToast('❌ 管理トークンが違います'); return null; }
+  if (!res.ok) { showToast('❌ ' + (data.error || res.status)); return null; }
+  return data;
+}
+
+async function openXTab() {
+  renderXTab();
+  if (Date.now() - xState.loadedAt > 20000) await refreshX();
+}
+async function refreshX() {
+  const get = (u) => fetch(u).then(r => r.ok ? r.json() : null).catch(() => null);
+  // 「明日の実験レシピ」は前夜03:20に作られる。JSTの明日を明示的に取りに行く
+  const jstNow = new Date(Date.now() + 9 * 3600000);
+  const tomorrow = new Date(jstNow.getTime() + 86400000).toISOString().slice(0, 10);
+  try {
+    const [c, s, l, b, rc] = await Promise.all([
+      get('/api/x/candidates'), get('/api/x/stats'), get('/api/x/ledger?days=14'),
+      get('/api/x/brief?kind=daily'), get(`/api/x/recipes?date=${tomorrow}`),
+    ]);
+    xState = { cands: c, stats: s, ledger: l, brief: b, recipes: rc, loadedAt: Date.now() };
+  } catch { /* オフライン。前回表示を維持 */ }
+  renderXTab();
+}
+
+// X の重み付き文字数（CJK・全角=2）。上限280
+function xUnits(s) {
+  let u = 0;
+  for (const ch of String(s || '')) {
+    const cp = ch.codePointAt(0);
+    const wide = (cp >= 0x1100 && cp <= 0x115f) || (cp >= 0x2e80 && cp <= 0xa4cf) || (cp >= 0xac00 && cp <= 0xd7a3) ||
+      (cp >= 0xf900 && cp <= 0xfaff) || (cp >= 0xff00 && cp <= 0xff60) || (cp >= 0x1f300 && cp <= 0x1faff);
+    u += wide ? 2 : 1;
+  }
+  return u;
+}
+function xCopy(text, btn) {
+  if (!text) return;
+  const done = () => {
+    if (btn) { const t = btn.textContent; btn.textContent = 'コピー済！'; btn.classList.add('copied'); setTimeout(() => { btn.textContent = t; btn.classList.remove('copied'); }, 2000); }
+    showToast('コピーしました');
+  };
+  const fallback = () => {
+    const ta = document.createElement('textarea');
+    ta.value = text; ta.style.cssText = 'position:fixed;opacity:0;';
+    document.body.appendChild(ta); ta.focus(); ta.select();
+    document.execCommand('copy'); ta.remove(); done();
+  };
+  if (navigator.clipboard) navigator.clipboard.writeText(text).then(done).catch(fallback); else fallback();
+}
+function xCopyCand(id, type, btn) {
+  const c = (xState.cands?.candidates || []).find(x => x.id === id);
+  if (!c) return;
+  let text = c.body;
+  if (type === 'reply') text = c.reply;
+  if (type === 'thread') { try { text = JSON.parse(c.thread_json || '[]').join('\n\n'); } catch { text = ''; } }
+  xCopy(text, btn);
+}
+async function xMark(id, status) {
+  if (status === 'killed' && !confirm('この候補を却下しますか？')) return;
+  let tweet_id = null;
+  if (status === 'posted') {
+    const v = prompt('投稿しましたか？ 投稿URLか投稿IDがあれば貼ってください（空でもOK・後で自動突合します）', '');
+    if (v === null) return;
+    const m = v.match(/status\/(\d+)/) || v.match(/^(\d{10,})$/);
+    tweet_id = m ? m[1] : null;
+  }
+  const r = await xAdminFetch('/api/x/mark', { id, status, tweet_id });
+  if (r) { showToast(status === 'posted' ? '✅ 投稿済みとして記録しました' : '却下しました'); await refreshX(); }
+}
+// v3（2026-09-08）: 他アカウントの監視（成長レーダー）は廃止。学習は自分のデータだけで行う。
+// 新しい型は香司が「いいな」と思った投稿を研究タブに手で登録して学ぶ。
+function xFmt(n) { return n == null ? '—' : Number(n).toLocaleString('ja-JP'); }
+function xTime(ts) { return ts ? new Date(ts).toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : ''; }
+
+// レシピの5つのダイヤル（型・フック・燃料・時間帯・形式）をチップで見せる
+function xDials(k) {
+  const dials = [];
+  if (k.hook) dials.push(`<span class="x-dial">${esc(k.hook)}</span>`);
+  if (k.slot) dials.push(`<span class="x-dial">${xSlot(k.slot)}</span>`);
+  if (k.format) dials.push(`<span class="x-dial">${esc(k.format)}</span>`);
+  let fids = []; try { fids = JSON.parse(k.fact_ids || '[]'); } catch { fids = []; }
+  for (const f of fids) dials.push(`<span class="x-dial fact">${esc(f)}</span>`);
+  return dials.length ? `<div class="x-dials">${dials.join('')}</div>` : '';
+}
+const xSlot = (s) => ({ morning: '朝 7:30-8:30', evening: '夜 19:30-21:00', noon: '昼' }[s] || s || '');
+
+function renderXTab() {
+  const root = document.getElementById('x-root');
+  if (!root) return;
+  const c = xState.cands, s = xState.stats;
+  const brief = xState.brief?.brief;
+  const briefHtml = brief ? `<div class="daily-card" style="margin-bottom:12px;"><div class="reply-label">📋 今日のブリーフ</div><div style="font-size:13.5px;line-height:1.8;white-space:pre-wrap;">${esc(brief.text)}</div></div>` : '';
+  const admin = !!xAdminToken();
+  const acct = s?.account || [];
+  const today = acct[0], weekAgo = acct.find(a => a.date <= (today ? new Date(new Date(today.date).getTime() - 7 * 86400000).toISOString().slice(0, 10) : ''));
+  const delta7 = (today && weekAgo) ? today.followers - weekAgo.followers : null;
+  const phaseChip = c ? `<span class="chip ${c.phase === 'B' ? 'x-chip-ok' : ''}">Phase ${esc(c.phase || 'A')}${c.phase === 'B' ? '・自動配信' : '・手動投稿'}</span>` : '';
+  const pausedChip = c?.paused ? '<span class="chip x-chip-warn">⏸ 配信停止中</span>' : '';
+
+  // ---- 今日の候補 ----
+  const cands = c?.candidates || [];
+  const candHtml = !c
+    ? '<div class="dash-empty">候補を読み込めません（オフライン、または未設定）</div>'
+    : cands.length === 0
+      ? `<div class="daily-card"><div class="dash-empty">今日（${esc(c.date)}）の候補はまだありません。朝エンジンが 06:30 に生成します。届かない日はMac Studioの認証切れの可能性があります（<code>daily-engine/logs/x-${esc(c.date)}.log</code> を確認）。${(c.stock || []).length ? `<br><br>常備ストックが${c.stock.length}本あります。` : ''}</div></div>`
+      : cands.map((k, i) => {
+        let warns = [];
+        try { const lj = JSON.parse(k.lint_json || '{}'); warns = lj.body?.warns || []; } catch { warns = []; }
+        let thread = [];
+        try { thread = JSON.parse(k.thread_json || '[]'); } catch { thread = []; }
+        const u = xUnits(k.body);
+        const posted = k.status === 'posted';
+        return `
+        <div class="daily-card ${posted ? 'x-posted' : ''}">
+          <div class="daily-head">
+            <span class="chip daily-rank">#${i + 1}</span>
+            ${k.pattern ? `<span class="chip">${esc(k.pattern)}</span>` : ''}
+            ${k.confidence != null ? `<span class="chip chip-confidence">確度 ${k.confidence}%</span>` : ''}
+            ${k.mode === 'safety' ? '<span class="chip x-chip-warn">⚠️配慮モード</span>' : ''}
+            ${k.is_exploration ? '<span class="chip x-chip-exp">🧪 探索</span>' : ''}
+            ${posted ? `<span class="chip x-chip-ok">✅ 投稿済み ${xTime(k.posted_at)}</span>` : ''}
+            <span class="x-units ${u > 280 ? 'over' : ''}">${u}/280</span>
+          </div>
+          ${xDials(k)}
+          <div class="daily-body">${nl(k.body)}</div>
+          ${k.reply ? `<div class="daily-reply"><div class="reply-label">追いリプ</div><div class="reply-text">${nl(k.reply)}</div></div>` : ''}
+          ${thread.length ? `<div class="x-thread"><div class="reply-label">スレッド版（${thread.length}本）</div>${thread.map(t => `<div class="x-thread-item">${esc(t)}</div>`).join('')}</div>` : ''}
+          ${k.rationale ? `<div class="daily-why"><strong>💡</strong> ${esc(k.rationale)}${k.radar_ref ? `<br><span style="opacity:.8">📡 参考: ${esc(k.radar_ref)}</span>` : ''}</div>` : ''}
+          ${warns.length ? `<div class="x-lint">⚠ ${warns.map(w => esc(w.msg + (w.match ? '（' + w.match + '）' : ''))).join(' ／ ')}</div>` : ''}
+          <div class="daily-actions">
+            <button class="btn-sm btn-copy-main" onclick="xCopyCand('${esc(k.id)}','body',this)">📋 本文コピー</button>
+            ${k.reply ? `<button class="btn-sm btn-copy-reply" onclick="xCopyCand('${esc(k.id)}','reply',this)">追いリプ</button>` : ''}
+            ${thread.length ? `<button class="btn-sm btn-copy-reply" onclick="xCopyCand('${esc(k.id)}','thread',this)">スレッド</button>` : ''}
+            ${!posted ? `<button class="btn-sm" style="background:var(--success);color:#fff;" onclick="xMark('${esc(k.id)}','posted')">✅ 投稿した</button>
+            <button class="btn-sm" style="background:#eee;color:#666;" onclick="xMark('${esc(k.id)}','killed')">却下</button>` : ''}
+          </div>
+        </div>`;
+      }).join('');
+
+  // ---- 学習台帳（毎日1行以上の学び。増え続けることが賢くなった証拠）----
+  const led = xState.ledger, rows = led?.ledger || [], streak = led?.healthy_streak ?? 0;
+  const kindIcon = { learn: '💡', stagnate: '⏸', alert: '⚠️', weekly: '📅', monthly: '🔭', human: '✍️' };
+  const ledgerHtml = rows.length
+    ? rows.slice(0, 20).map(l => `<div class="x-ledger-row"><span class="x-ledger-date">${esc(l.date.slice(5))}</span>${kindIcon[l.kind] || '・'} ${esc(l.text)}</div>`).join('')
+    : '<div class="dash-empty">まだ学びがありません。投稿して計測が回れば、毎朝ここに1行以上たまります</div>';
+  const healthHtml = led ? `<div class="x-streak ${streak >= 14 ? 'ok' : ''}">
+      ${streak >= 14 ? '✅ 稼働中' : '🌱 立ち上げ中'}：不変条件が <b>${streak}日</b>連続で成立（14日で「稼働」）
+    </div>` : '';
+
+  // ---- 明日のレシピ（Workerが決めた実験計画）----
+  const rc = xState.recipes?.recipes || [];
+  const recipeHtml = rc.length
+    ? rc.map(r => `<div class="x-recipe ${r.constraint_ok ? '' : 'ng'}">
+        <b>#${r.rank}${r.is_exploration ? ' 🧪探索' : ''}</b>
+        ${r.constraint_ok ? `<span class="x-dial">${esc(r.pattern)}</span><span class="x-dial">${esc(r.hook)}</span><span class="x-dial">${xSlot(r.slot)}</span><span class="x-dial">${esc(r.format)}</span>${(r.fact_ids || []).map(f => `<span class="x-dial fact">${esc(f)}</span>`).join('')}` : '<span class="x-dial ng">制約により作れず</span>'}
+        <div class="x-recipe-why">${esc(r.rationale || '')}</div>
+      </div>`).join('')
+    : '<div class="dash-empty">レシピは毎晩03:20に自動で作られます</div>';
+
+  // ---- 成績 ----
+  const patterns = s?.patterns || [], recent = s?.recent || [], log = s?.log || [];
+  const spark = acct.slice(0, 14).reverse().map(a => `${a.date.slice(5)}: ${xFmt(a.followers)}`).join(' → ');
+  const patHtml = patterns.length
+    ? `<table class="x-table"><tr><th>型</th><th>n</th><th>インプ</th><th>プロフ</th><th>推定フォロー</th></tr>${patterns.map(p => `
+        <tr><td>${esc(p.pattern || '—')}</td><td>${p.n}</td><td>${xFmt(Math.round(p.avg_impressions || 0))}</td><td>${xFmt(Math.round(p.avg_profile_clicks || 0))}</td><td class="x-up">${(p.est_follows || 0).toFixed(1)}</td></tr>`).join('')}</table>`
+    : '<div class="dash-empty">型別成績は投稿と計測が貯まると表示されます（初動3週間は優劣を断定しない）</div>';
+  const recentHtml = recent.length
+    ? recent.slice(0, 10).map(m => `<div class="x-radar-post"><div class="meta">${xTime(m.created_ts)} ・ 👁${xFmt(m.impressions)} ❤${xFmt(m.likes)} 💬${xFmt(m.replies)} 🔁${xFmt(m.reposts)} 💬″${xFmt(m.quotes)} 🔖${xFmt(m.bookmarks)} 👤${xFmt(m.profile_clicks)}${m.pattern ? ' ・ ' + esc(m.pattern) : ''}</div>${esc((m.text || '').slice(0, 60))}…</div>`).join('')
+    : '';
+  const logHtml = xShowLog && log.length
+    ? `<div class="x-log">${log.map(l => `${xTime(l.ts)} ${esc(l.actor)}/${esc(l.action)} ${esc(l.target || '')} <b>${esc(l.result)}</b>`).join('<br>')}</div>`
+    : '';
+
+  root.innerHTML = `
+    <div class="x-head">
+      <span class="daily-title">🏮 灯守 — @crystalinsence</span>
+      ${phaseChip}${pausedChip}
+      <button class="btn-sm" style="margin-left:auto;background:${admin ? 'var(--primary-light)' : '#fff3e0'};color:${admin ? 'var(--primary)' : '#e65100'};" onclick="xSetAdminToken()">${admin ? '🔑 管理' : '🔑 トークン未設定'}</button>
+      <button class="btn-sm" style="background:var(--bg);color:var(--muted);" onclick="refreshX()">🔄</button>
+    </div>
+    ${briefHtml}
+    ${today ? `<div class="daily-insight" style="margin:0 0 12px;"><strong>👥 フォロワー ${xFmt(today.followers)}</strong>${delta7 != null ? `（7日 ${delta7 >= 0 ? '+' : ''}${xFmt(delta7)}）` : ''}<br><span style="font-size:11px">${esc(spark)}</span></div>` : ''}
+    ${healthHtml}
+
+    <div class="section-header">☀️ 今日の候補（X）${c?.date ? `<span class="daily-date">${esc(c.date)}</span>` : ''}${c?.cadence_per_day ? `<span class="daily-date">1日${c.cadence_per_day}本</span>` : ''}</div>
+    ${candHtml}
+
+    <div class="section-header" style="margin-top:22px;">📓 学習台帳</div>
+    <div class="gen-card">
+      ${ledgerHtml}
+      <div class="dash-subhead" style="margin-top:16px;">明日の実験レシピ</div>
+      ${recipeHtml}
+    </div>
+
+    <div class="section-header" style="margin-top:22px;">📈 成績（フォロワー獲得ベース）</div>
+    <div class="gen-card">
+      ${patHtml}
+      ${recentHtml ? `<div class="dash-subhead" style="margin-top:14px;">直近の自投稿</div>${recentHtml}` : ''}
+      <div style="margin-top:10px;"><button class="btn-sm" style="background:var(--bg);color:var(--muted);" onclick="xShowLog=!xShowLog;renderXTab()">${xShowLog ? '監査ログを隠す' : '監査ログ'}</button></div>
+      ${logHtml}
+    </div>`;
+}
 
 // ---- Init ----
 checkNewBatches();

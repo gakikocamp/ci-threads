@@ -1,0 +1,23 @@
+name = "ci-x-cron"
+main = "src/index.js"
+compatibility_date = "2026-04-01"
+
+# threads-app (ci-threads) と同じ ci_zukou D1 に相乗り。値は wrangler.toml と完全一致させること
+[[d1_databases]]
+binding = "DB"
+database_name = "ci_zukou"
+database_id = "2b26763a-7369-424c-a8ee-8421e21b06d2"
+
+# JST 03:00 = UTC 18:00
+[triggers]
+crons = ["0 18 * * *"]
+
+[vars]
+DRY_RUN = "0"
+RADAR_TOP_N = "10"
+RADAR_POSTS_PER = "5"
+MAX_READS_PER_DAY = "400"
+SELF_HANDLE = "crystalinsence"
+
+# secrets（値はコード管理しない。本人が wrangler secret put で投入）:
+# X_API_KEY, X_API_SECRET, X_ACCESS_TOKEN, X_ACCESS_SECRET, X_CRON_TOKEN

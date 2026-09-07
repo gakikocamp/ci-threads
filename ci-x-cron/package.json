@@ -1,0 +1,9 @@
+{
+  "name": "ci-x-cron",
+  "private": true,
+  "type": "module",
+  "description": "X(旧Twitter) 公式API v2 で自投稿メトリクスと監視アカウントのフォロワー数を毎日D1に記録するcron Worker。書き込みAPIは実装しない。",
+  "scripts": {
+    "test": "node --test test/"
+  }
+}

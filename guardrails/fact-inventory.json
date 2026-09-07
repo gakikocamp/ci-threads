@@ -1,0 +1,142 @@
+{
+  "version": "2026-09-08",
+  "purpose": "投稿の「燃料」となる一次情報の在庫。生成はここにある事実だけを使う。ここに無い事実・数字・固有名詞は書けない（リンターが止める）。",
+  "rules": [
+    "1投稿で使う燃料は1〜2件",
+    "同じ燃料は使用から14日間は再使用しない（x_fact_usage で管理）",
+    "strength は事前分布ではなく人の目安。腕の学習は実測で上書きされる",
+    "新しい燃料を足せるのはCEO（香司本人）だけ。AIは追加しない",
+    "category: material=素材 / process=製法 / crisis=危機と数字 / practice=焚き方と暮らし / origin=由来 / person=作り手"
+  ],
+
+  "facts": [
+    {
+      "id": "tabu-craftsmen-2",
+      "category": "crisis",
+      "text": "お香を固める椨の粉を、昔ながらの製法で作れる職人は全国にあと2人",
+      "source": "Threads実測投稿（3,183いいね）・事実表 numbers_allowed",
+      "strength": 1.6,
+      "notes": "最強の燃料。数字絶滅型と相性が良い。使いすぎると効かなくなるので月2回まで"
+    },
+    {
+      "id": "tabu-fukuoka",
+      "category": "material",
+      "text": "私が使う椨粉は福岡県産・自然栽培。香りの主役ではないので、ほとんど知られていない",
+      "source": "事実表（市町村は非公表）",
+      "strength": 1.2,
+      "notes": "八女と結びつけて書かない"
+    },
+    {
+      "id": "tabu-role",
+      "category": "material",
+      "text": "お香の「香り」と「固まる力」は別の材料が担っている。香りは杉や白檀、固めるのは椨の粉",
+      "source": "事実表・秘密予告型の定番",
+      "strength": 1.1,
+      "notes": "誤解訂正型・真実暴露型の核"
+    },
+    {
+      "id": "waterwheel",
+      "category": "process",
+      "text": "原料は水車でゆっくり粉に挽く。電気を使わない昔ながらの製法",
+      "source": "事実表 process.allowed",
+      "strength": 1.2,
+      "notes": null
+    },
+    {
+      "id": "factory-3gen",
+      "category": "process",
+      "text": "この粉を挽く工場は3代続いている",
+      "source": "事実表（第三者の工場。自社工場ではない）",
+      "strength": 1.0,
+      "notes": "「私の工場」「祖父の代から」と書かない"
+    },
+    {
+      "id": "six-free",
+      "category": "process",
+      "text": "化学香料・着色料・防腐剤・燃焼剤・凝固剤・アロマオイルの6つを使わずに作っている",
+      "source": "事実表 additives.six_free",
+      "strength": 1.1,
+      "notes": "認証・安全性の断定はしない"
+    },
+    {
+      "id": "misconception-natural",
+      "category": "material",
+      "text": "「お香って天然素材でしょう？」とよく言われるが、実際は化学香料で香りをつけたものが少なくない",
+      "source": "Threads実測（1,101いいね・誤解訂正型）",
+      "strength": 1.0,
+      "notes": "他社を名指しで貶めない"
+    },
+    {
+      "id": "yame-sugi",
+      "category": "material",
+      "text": "八女の杉の粉を合わせる日は、仕事場じゅうが森の匂いになる",
+      "source": "事実表（八女＝杉のみ）",
+      "strength": 1.0,
+      "notes": null
+    },
+    {
+      "id": "yakusugi",
+      "category": "material",
+      "text": "鹿児島・屋久島の杉を使う",
+      "source": "事実表",
+      "strength": 0.9,
+      "notes": null
+    },
+    {
+      "id": "byakudan",
+      "category": "material",
+      "text": "白檀は燻蒸処理をしていない天然の香木",
+      "source": "事実表（輸入香木。国産と書かない）",
+      "strength": 0.9,
+      "notes": "「国産白檀」は禁止"
+    },
+    {
+      "id": "crystal-yamaguchi",
+      "category": "origin",
+      "text": "山口県産の天然水晶のパウダーを合わせている。だからクリスタルインセンスという名前になった",
+      "source": "CEO確定（2026-08-29）",
+      "strength": 1.1,
+      "notes": "ブラジル産は旧誤記"
+    },
+    {
+      "id": "five-years",
+      "category": "crisis",
+      "text": "原料の作り手と話すたびに「あと5年もつだろうか」という言葉が出る",
+      "source": "Threads実測（1,192・3,183）",
+      "strength": 1.4,
+      "notes": "数字絶滅型。tabu-craftsmen-2 と同時に使わない"
+    },
+    {
+      "id": "fire-method",
+      "category": "practice",
+      "text": "先端に火を移したら炎はすぐ手で扇いで消す。細い煙が一筋立てばいい。炎のまま燃やすと焦げた匂いが混ざる",
+      "source": "香司の実務",
+      "strength": 1.0,
+      "notes": "保存版の知恵型。共有されやすい"
+    },
+    {
+      "id": "fifteen-min",
+      "category": "practice",
+      "text": "朝の仕事前と夜眠る前、15分だけ火の揺れを見ながら座る",
+      "source": "事実表 numbers_allowed（15分）",
+      "strength": 1.0,
+      "notes": "効能を約束せず行為で書く"
+    },
+    {
+      "id": "drying-weather",
+      "category": "process",
+      "text": "お香を乾かすのは天気との相談。湿気が多い日は曲がりやすく、乾きすぎると割れる",
+      "source": "香司の実務",
+      "strength": 0.9,
+      "notes": null
+    },
+    {
+      "id": "fukuoka-koushi",
+      "category": "person",
+      "text": "福岡でお香を作っている香司",
+      "source": "事実表 brand",
+      "strength": 0.9,
+      "notes": "年齢・生年は書かない（事実表の numbers_allowed に無い）"
+    }
+  ]
+}
