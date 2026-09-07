@@ -1,69 +1,40 @@
 #!/bin/zsh
-# =====================================================================
-# クリスタルインセンス デイリーバズ・エンジン（Mac Studio 常駐版）
-# ---------------------------------------------------------------------
-# launchd から毎朝起動され、Claude Code(headless / --print)に
-# 「当日ルーチン」を実行させる。
-#  収集 → 前日成績＋インサイト記録 → 学習 → 今日の推奨投稿を生成
-#  → /api/daily に反映（アプリの「☀️今日の推奨投稿」に表示）
-#
-# 生成は Claude Code 内（サブスク枠）で行うため、日次のAPI従量課金は発生しない。
-# 前提: このMacで `claude` が使え、Chrome + Claudeブラウザ拡張がサインイン済みで
-#       Threadsに @crystal_insence でログイン済みであること（README参照）。
-# =====================================================================
+# =============================================================
+# クリスタルインセンス デイリーバズ・エンジン
+# launchd (com.crystalinsence.dailybuzz) から毎朝6:54に起動される
+# 本体: iCloud/開発用/SecondGaki/クリスタルインセンス/threads-app/daily-engine/
+# ログ: 同ディレクトリ logs/run-YYYY-MM-DD.log
+# =============================================================
 set -u
 
-REPO="/Users/gakipro/Library/Mobile Documents/com~apple~CloudDocs/開発用/SecondGaki/クリスタルインセンス/threads-app"
-LOG_DIR="$REPO/daily-engine/logs"
+ENGINE_DIR="${0:A:h}"
+LOG_DIR="$ENGINE_DIR/logs"
 mkdir -p "$LOG_DIR"
-STAMP="$(date +%Y-%m-%d)"
-LOG="$LOG_DIR/$STAMP.log"
 
-cd "$REPO" || { echo "repo not found" >> "$LOG"; exit 1; }
+TODAY=$(date +%Y-%m-%d)
+LOG_FILE="$LOG_DIR/run-$TODAY.log"
 
-echo "===== デイリーバズ・エンジン起動 $(date '+%Y-%m-%d %H:%M:%S') =====" >> "$LOG"
+# launchd経由でもclaude/homebrewツールが見えるようPATHを保証
+export PATH="$HOME/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:$PATH"
 
-# --- 当日ルーチンのプロンプト（Claude Code headless に渡す） ---
-read -r -d '' PROMPT <<'EOF'
-[デイリーバズ・エンジン / Mac Studio常駐] 今朝のクリスタルインセンス運用ルーチンを実行して。
+echo "===== daily buzz engine start: $(date '+%Y-%m-%d %H:%M:%S') =====" >> "$LOG_FILE"
+echo "claude: $(command -v claude || echo 'NOT FOUND')" >> "$LOG_FILE"
 
-前提メモリ: 運用ルール・CIの1000+分析・勝ち式・収集の技術メモは「クリスタルインセンス threads-app 運用手順」を必ず参照すること。
+BASE_PROMPT=$(cat <<'PROMPT_EOF'
+(1)接続中Chromeを選択し@crystal_insenceと@gakikocampの直近投稿を収集(いいね/リプ/リポスト＋可能ならインサイトのview/リーチ)。(2)前日〜数日でsettleした自社投稿をbuzz/ok/miss判定(閾値:@crystal_insence buzz>=3000/ok800-2999/miss<800、@gakikocamp buzz>=300/ok80-299/miss<80、24h未満はpending)しpattern分類してPOST https://ci-threads.pages.dev/api/results (x-sync-key:ci-threads-sync-v1、id=org-ci-<postid>、theme先頭[@acct ❤N view:V])。(3)#国産を守ろう/#国産タグ上位の新規バズ1-2件をPOST https://ci-threads.pages.dev/api/buzz (排外/政治色除外)。(4)実測パターン率＋勝ちフックから今日の推奨1本(本文+追いリプ)生成。勝ち式=あと◯数字×固有名詞(福岡/椨/水車/杉/菊水/39歳)×危機→誇り×控えめCTA(そっといいね/力を貸して)。NG回避(説明分析/同型連打/事実なしのお願い/お礼連投)、値引き/排外/スピ全振り禁止、一人称=香司。(5)今日の推奨をPOST https://ci-threads.pages.dev/api/daily (x-sync-key:ci-threads-sync-v1、id=今日の日付YYYY-MM-DD、date/mode/pattern/theme/body/reply/tag/confidence/rationale/insight_summary)。(6)投稿はしない。大規模災害進行中ならmode='safety'で無事報告トーンに。
+PROMPT_EOF
+)
 
-手順:
-(1) 接続中のChromeを選択（list_connected_browsers。複数あればThreadsに @crystal_insence でログイン済みのものを選ぶ）し、Threadsの @crystal_insence と @gakikocamp の直近投稿を収集する
-    （いいね/リプ/リポスト、可能なら各投稿の「インサイト」タブを開いて view/リーチも取得）。
-    仮想リストのストールに注意（setInterval(__grab,350)方式・右端スクロール・段階スクロール）。
-(2) 前日〜数日で新たに settle した自社投稿を判定し、いいね数から result を付ける
-    （閾値: @crystal_insence buzz>=3000 / ok 800-2999 / miss<800、
-      @gakikocamp buzz>=300 / ok 80-299 / miss<80、投稿24h未満は pending=記録しない）。
-    pattern分類して POST https://ci-threads.pages.dev/api/results
-    （x-sync-key: ci-threads-sync-v1、id=org-ci-<postid>、theme先頭に [@acct ❤N view:V]、重複はupsert）。
-(3) #国産を守ろう / #国産 のタグ上位で新規バズを1〜2件だけ拾い、分類して
-    POST https://ci-threads.pages.dev/api/buzz（排外・陰謀論・政治色は除外）。
-(4) /api/results のパターン別バズ率と /api/buzz の勝ちフック型を踏まえ、
-    その日の推奨投稿を1本（本文＋追いリプ）生成する。
-    CI勝ち式=【あと◯の絶滅数字 × 固有名詞(福岡/椨/水車/杉/菊水/39歳) × 危機→誇り × 控えめCTA(そっといいね/力を貸して)】。
-    NG回避（説明分析から入らない/同型連打しない/事実なしのお願い/お礼連投）。値引き訴求・排外・スピ全振り禁止。一人称=香司。
-(5) 生成した今日の推奨投稿を POST https://ci-threads.pages.dev/api/daily で反映する
-    （x-sync-key: ci-threads-sync-v1、id=今日の日付 YYYY-MM-DD、フィールド: date, mode('buzz'), pattern, theme,
-      body, reply, tag, confidence, rationale(なぜ今日これか), insight_summary(前日成績の要約) ）。
-    → これで ci-threads アプリの「☀️今日の推奨投稿」に表示される。
-(6) 重要: 投稿は行わない（本人がアプリからコピペして投稿する）。
-    大規模災害・センシティブ事象が進行中なら、その日はバズ投稿を作らず、
-    mode='safety' として無事報告・お見舞いトーンの案を /api/daily に入れる。
-(7) 傾向の変化・新しい学びがあればメモリ「クリスタルインセンス threads-app 運用手順」に追記する。
-最後に、今日やったこと（記録した成績・生成した投稿の1行目・確度）を簡潔に出力して終了。
-EOF
+# 2026-09-04限定の熊本地震セーフティ指示（当日のみ付与。以降は上記(6)の一般ルールで判断）
+SAFETY_NOTE=""
+if [[ "$TODAY" == "2026-09-04" ]]; then
+  SAFETY_NOTE="※今日2026-09-04は熊本地震の翌日なので必ずmode='safety'で無事報告・お見舞いトーンにすること。"
+fi
 
-# Claude Code headless 実行（非対話・出力はログへ）
-# 注: MCPブラウザ(claude-in-chrome)を使うため、このMacのClaude Codeに拡張が
-#     ペアリング済みであること。
-# --dangerously-skip-permissions: 無人launchd実行では権限プロンプトに応答できず止まるため、
-#   ツール許可をスキップして走らせる。実行内容は上記PROMPTに限定される想定。
-#   （リスクを避けたい場合は、この一行を通常の `claude -p "$PROMPT"` に戻し、
-#    .claude/settings.json でブラウザMCP/Bash(curl)/Read/Editを個別allow設定する）
-claude -p --dangerously-skip-permissions "$PROMPT" >> "$LOG" 2>&1
-CODE=$?
+PROMPT="${BASE_PROMPT}${SAFETY_NOTE}"
 
-echo "===== 終了 code=$CODE $(date '+%Y-%m-%d %H:%M:%S') =====" >> "$LOG"
-exit $CODE
+claude -p --dangerously-skip-permissions "$PROMPT" >> "$LOG_FILE" 2>&1
+EXIT_CODE=$?
+
+echo "===== daily buzz engine end (exit=$EXIT_CODE): $(date '+%Y-%m-%d %H:%M:%S') =====" >> "$LOG_FILE"
+exit $EXIT_CODE

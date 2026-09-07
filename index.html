@@ -279,6 +279,8 @@
       background: var(--bg); border-radius: 8px; padding: 8px 10px; line-height: 1.6;
     }
     .daily-actions { display: flex; gap: 7px; flex-wrap: wrap; margin-top: 14px; }
+    /* 今日の候補（ランキング表示）用の順位バッジ */
+    .daily-rank { background: var(--primary); color: #fff; }
   </style>
 </head>
 <body>
@@ -2108,7 +2110,8 @@ let currentTab    = 'review';
 
 // ---- 今日の推奨投稿 ----
 const DAILY_URL = '/api/daily';
-let dailyRec = loadState('ci_daily', 'null'); // サーバー同期済みキャッシュ（{ date, mode, pattern, theme, body, reply, tag, confidence, rationale, insight_summary } | null）
+let dailyRec = loadState('ci_daily', 'null'); // サーバー同期済みキャッシュ（{ date, mode, pattern, theme, body, reply, tag, confidence, rationale, insight_summary, candidates } | null）
+let dailyCands = []; // renderDailyRec() が候補モードで描画した際の並び替え済み配列（コピー用にindexで参照）
 
 // ---- Startup: check for new batches ----
 function checkNewBatches() {
@@ -2199,7 +2202,56 @@ function renderDailyRec() {
   const el = document.getElementById('daily-rec-area');
   if (!el) return;
   const r = dailyRec;
-  if (!r) { el.innerHTML = ''; return; }
+  if (!r) { el.innerHTML = ''; dailyCands = []; return; }
+
+  // candidates列（JSON文字列）があれば配列にパースを試みる → 候補モードの判定に使う
+  let cands = [];
+  if (r.candidates) {
+    try {
+      const parsed = typeof r.candidates === 'string' ? JSON.parse(r.candidates) : r.candidates;
+      if (Array.isArray(parsed)) cands = parsed;
+    } catch { cands = []; }
+  }
+
+  if (cands.length > 0) {
+    // ---- 候補モード：バズ確度順ランキング表示（最大5本） ----
+    const sorted = [...cands].sort((a, b) => (b.confidence || 0) - (a.confidence || 0)).slice(0, 5);
+    dailyCands = sorted; // copyDailyCand() からindexで参照する
+    const insightHtml = r.insight_summary ? `
+      <div class="daily-card">
+        <div class="daily-insight" style="margin-top:0;"><strong>📊 前日の成績</strong><br>${esc(r.insight_summary)}</div>
+      </div>` : '';
+    const cardsHtml = sorted.map((c, i) => `
+      <div class="daily-card">
+        <div class="daily-head">
+          <span class="chip daily-rank">#${i + 1}</span>
+          ${c.pattern ? `<span class="chip">${esc(c.pattern)}</span>` : ''}
+          ${c.confidence != null ? `<span class="chip chip-confidence">確度 ${c.confidence}%</span>` : ''}
+        </div>
+        <div class="daily-body">${nl(c.body)}</div>
+        ${c.reply ? `<div class="daily-reply">
+          <div class="reply-label">追いリプ</div>
+          <div class="reply-text">${nl(c.reply)}</div>
+        </div>` : ''}
+        ${c.rationale ? `<div class="daily-why"><strong>💡</strong> ${esc(c.rationale)}</div>` : ''}
+        <div class="daily-actions">
+          <button class="btn-sm btn-copy-main" id="dcand-${i}-main" onclick="copyDailyCand(${i},'body')">📋 本文コピー</button>
+          ${c.reply ? `<button class="btn-sm btn-copy-reply" onclick="copyDailyCand(${i},'reply')">追いリプコピー</button>` : ''}
+        </div>
+      </div>`).join('');
+    el.innerHTML = `
+      <div class="daily-head" style="margin-bottom:2px;">
+        <span class="daily-title">☀️ 今日の候補</span>
+        ${r.date ? `<span class="daily-date">${esc(r.date)}</span>` : ''}
+      </div>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:10px;">バズ確度順・最大5本</div>
+      ${insightHtml}
+      ${cardsHtml}`;
+    return;
+  }
+
+  // ---- 単一モード（フォールバック：candidatesが無い旧方式・配慮モード） ----
+  dailyCands = [];
   const confChip = r.mode === 'safety'
     ? '<span class="chip" style="background:#fff3e0;color:#e65100;">⚠️配慮モード</span>'
     : (r.confidence != null ? `<span class="chip chip-confidence">確度 ${r.confidence}%</span>` : '');
@@ -2250,6 +2302,35 @@ function flashDailyCopy(type) {
     }
   }
   showToast(type === 'reply' ? '追いリプをコピーしました' : '今日の推奨投稿をコピーしました');
+}
+
+// ---- 今日の候補（複数）：コピー ----
+function copyDailyCand(index, type) {
+  const c = dailyCands[index];
+  if (!c) return;
+  const text = type === 'reply' ? c.reply : c.body;
+  if (!text) return;
+  const fallback = () => {
+    const ta = document.createElement('textarea');
+    ta.value = text; ta.style.cssText = 'position:fixed;opacity:0;';
+    document.body.appendChild(ta); ta.focus(); ta.select();
+    document.execCommand('copy'); ta.remove();
+    flashDailyCandCopy(index, type);
+  };
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(text).then(() => flashDailyCandCopy(index, type)).catch(fallback);
+  } else fallback();
+}
+
+function flashDailyCandCopy(index, type) {
+  if (type === 'body') {
+    const btn = document.getElementById(`dcand-${index}-main`);
+    if (btn) {
+      btn.textContent = 'コピー済！'; btn.classList.add('copied');
+      setTimeout(() => { btn.textContent = '📋 本文コピー'; btn.classList.remove('copied'); }, 2000);
+    }
+  }
+  showToast(type === 'reply' ? '追いリプをコピーしました' : `候補#${index + 1}をコピーしました`);
 }
 
 // ---- Render: Review ----

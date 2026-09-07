@@ -1,44 +1,31 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<!--
-  クリスタルインセンス デイリーバズ・エンジン launchd 設定（Mac Studio用）
-  毎朝 6:54 に run-daily.sh を起動する。Mac Studioが起きていれば必ず走る。
-  導入手順は daily-engine/README.md を参照。
--->
 <plist version="1.0">
 <dict>
-  <key>Label</key>
-  <string>com.crystalinsence.dailybuzz</string>
-
-  <key>ProgramArguments</key>
-  <array>
-    <string>/bin/zsh</string>
-    <string>/Users/gakipro/Library/Mobile Documents/com~apple~CloudDocs/開発用/SecondGaki/クリスタルインセンス/threads-app/daily-engine/run-daily.sh</string>
-  </array>
-
-  <!-- 毎朝 6:54 に起動（:00/:30を避けたオフ分） -->
-  <key>StartCalendarInterval</key>
-  <dict>
-    <key>Hour</key>
-    <integer>6</integer>
-    <key>Minute</key>
-    <integer>54</integer>
-  </dict>
-
-  <!-- ログイン中のみ動けばよい（GUI/ブラウザが必要なため）。RunAtLoadはしない -->
-  <key>RunAtLoad</key>
-  <false/>
-
-  <key>StandardOutPath</key>
-  <string>/Users/gakipro/Library/Mobile Documents/com~apple~CloudDocs/開発用/SecondGaki/クリスタルインセンス/threads-app/daily-engine/logs/launchd.out.log</string>
-  <key>StandardErrorPath</key>
-  <string>/Users/gakipro/Library/Mobile Documents/com~apple~CloudDocs/開発用/SecondGaki/クリスタルインセンス/threads-app/daily-engine/logs/launchd.err.log</string>
-
-  <!-- claude 等のCLIを見つけられるよう最低限のPATH -->
-  <key>EnvironmentVariables</key>
-  <dict>
-    <key>PATH</key>
-    <string>/Users/gakipro/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
-  </dict>
+	<key>Label</key>
+	<string>com.crystalinsence.dailybuzz</string>
+	<key>ProgramArguments</key>
+	<array>
+		<string>/bin/zsh</string>
+		<string>/Users/gaki/Library/Mobile Documents/com~apple~CloudDocs/開発用/SecondGaki/クリスタルインセンス/threads-app/daily-engine/run-daily.sh</string>
+	</array>
+	<key>StartCalendarInterval</key>
+	<dict>
+		<key>Hour</key>
+		<integer>6</integer>
+		<key>Minute</key>
+		<integer>54</integer>
+	</dict>
+	<key>RunAtLoad</key>
+	<false/>
+	<key>StandardOutPath</key>
+	<string>/Users/gaki/Library/Mobile Documents/com~apple~CloudDocs/開発用/SecondGaki/クリスタルインセンス/threads-app/daily-engine/logs/launchd.out.log</string>
+	<key>StandardErrorPath</key>
+	<string>/Users/gaki/Library/Mobile Documents/com~apple~CloudDocs/開発用/SecondGaki/クリスタルインセンス/threads-app/daily-engine/logs/launchd.err.log</string>
+	<key>EnvironmentVariables</key>
+	<dict>
+		<key>PATH</key>
+		<string>/Users/gaki/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
+	</dict>
 </dict>
 </plist>
