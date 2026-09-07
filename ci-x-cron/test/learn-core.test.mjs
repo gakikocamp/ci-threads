@@ -239,3 +239,38 @@ test('レシピ: 燃料が14日以内に使用済みなら別の燃料に切り�
   assert.ok(r.every((x) => x.constraint_ok === 1));
   assert.ok(r.every((x) => !x.fact_ids.includes('waterwheel')));
 });
+
+test('台帳: オリジナル投稿と返信の効率を1件あたりで比べる', () => {
+  const lines = buildLedger({
+    date: '2026-09-20', armChanges: [], conv: 0.3, convBefore: 0.3, postsYesterday: 2,
+    followers: 500, followersDelta: 12, recipes: [],
+    kinds: [
+      { kind: 'original', n: 20, per_item: 1.5, est_follows: 30 },
+      { kind: 'reply', n: 150, per_item: 0.4, est_follows: 60 },
+    ],
+  });
+  const t = lines.map((l) => l.text).join(' ');
+  assert.ok(t.includes('オリジナル20本') && t.includes('返信150件'), t);
+  assert.ok(t.includes('オリジナル投稿のほうが効率が高い'), t);
+});
+test('台帳: 返信が効率で上回れば倍率つきで報告する', () => {
+  const lines = buildLedger({
+    date: '2026-09-20', armChanges: [], conv: 0.3, convBefore: 0.3, postsYesterday: 2,
+    followers: 500, followersDelta: 12, recipes: [],
+    kinds: [
+      { kind: 'original', n: 10, per_item: 0.5, est_follows: 5 },
+      { kind: 'reply', n: 100, per_item: 1.0, est_follows: 100 },
+    ],
+  });
+  const t = lines.map((l) => l.text).join(' ');
+  assert.ok(t.includes('返信のほうが効率が高い') && t.includes('2.0倍'), t);
+});
+test('台帳: データ不足なら断定せず、返信の実数だけ出す', () => {
+  const lines = buildLedger({
+    date: '2026-09-20', armChanges: [], conv: 0.3, convBefore: 0.3, postsYesterday: 0,
+    followers: 100, followersDelta: 1, recipes: [{ rank: 1, pattern: 'A', hook: 'B', slot: 'evening' }],
+    kinds: [{ kind: 'reply', n: 12, per_item: 0.2, est_follows: 2.4 }],
+  });
+  const t = lines.map((l) => l.text).join(' ');
+  assert.ok(t.includes('返信12件') && t.includes('比較にはオリジナル3本以上'), t);
+});

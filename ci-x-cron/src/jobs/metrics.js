@@ -23,8 +23,8 @@ export async function runMetrics(env) {
   if (tweets.length) {
     const stmt = env.DB.prepare(
       `INSERT INTO x_metrics
-         (tweet_id, snap_date, text, created_ts, impressions, likes, replies, reposts, quotes, bookmarks, profile_clicks, link_clicks, fetched_at)
-       VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13)
+         (tweet_id, snap_date, text, created_ts, impressions, likes, replies, reposts, quotes, bookmarks, profile_clicks, link_clicks, fetched_at, kind, conversation_id)
+       VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15)
        ON CONFLICT(tweet_id, snap_date) DO UPDATE SET
          text = excluded.text,
          created_ts = excluded.created_ts,
@@ -36,10 +36,12 @@ export async function runMetrics(env) {
          bookmarks = excluded.bookmarks,
          profile_clicks = excluded.profile_clicks,
          link_clicks = excluded.link_clicks,
-         fetched_at = excluded.fetched_at`
+         fetched_at = excluded.fetched_at,
+         kind = excluded.kind,
+         conversation_id = excluded.conversation_id`
     );
     const batch = tweets.map((t) => {
-      const r = extractMetricRow(t, snapDate, fetchedAt);
+      const r = extractMetricRow(t, snapDate, fetchedAt, selfId);
       return stmt.bind(
         r.tweet_id,
         r.snap_date,
@@ -53,7 +55,9 @@ export async function runMetrics(env) {
         r.bookmarks,
         r.profile_clicks,
         r.link_clicks,
-        r.fetched_at
+        r.fetched_at,
+        r.kind,
+        r.conversation_id
       );
     });
     await env.DB.batch(batch);
@@ -65,7 +69,12 @@ export async function runMetrics(env) {
   return { skipped: false, reads: readCount, tweets: tweets.length, reconciled };
 }
 
-async function reconcileQueue(env, tweets) {
+// 突合はオリジナル投稿だけを対象にする（返信は候補から出たものではない）
+async function reconcileQueue(env, allTweets) {
+  const tweets = allTweets.filter((t) => {
+    const refs = Array.isArray(t.referenced_tweets) ? t.referenced_tweets : [];
+    return !refs.some((r) => r.type === 'replied_to') && !t.in_reply_to_user_id;
+  });
   if (!tweets.length) return 0;
   const { results: pending } = await env.DB.prepare(
     `SELECT id, body FROM x_queue WHERE (tweet_id IS NULL OR tweet_id = '') AND status != 'killed'`

@@ -3,11 +3,24 @@
 // tweetオブジェクト → x_metrics 1行分
 // impressions/profile_clicks/link_clicks は non_public_metrics を優先し、organic_metrics→public_metrics の順にフォールバック
 // （アクセスレベルによって non_public_metrics が返らない場合があるための保険。likes/replies/quotes/repostsは常にpublic_metrics）
-export function extractMetricRow(tweet, snapDate, fetchedAt = Date.now()) {
+// 返信かどうか。referenced_tweets に replied_to があるか、in_reply_to_user_id があれば返信。
+// 自分のスレッド（自分への返信）は「返信」ではなく本人の連投なので original 扱いにする。
+export function classifyKind(tweet, selfUserId = null) {
+  const refs = Array.isArray(tweet.referenced_tweets) ? tweet.referenced_tweets : [];
+  const isReplyRef = refs.some((r) => r.type === 'replied_to');
+  const target = tweet.in_reply_to_user_id || null;
+  if (!isReplyRef && !target) return 'original';
+  if (selfUserId && target && String(target) === String(selfUserId)) return 'original'; // 自分へのスレッド
+  return 'reply';
+}
+
+export function extractMetricRow(tweet, snapDate, fetchedAt = Date.now(), selfUserId = null) {
   const pm = tweet.public_metrics || {};
   const npm = tweet.non_public_metrics || {};
   const om = tweet.organic_metrics || {};
   return {
+    kind: classifyKind(tweet, selfUserId),
+    conversation_id: tweet.conversation_id ?? null,
     tweet_id: tweet.id,
     snap_date: snapDate,
     text: tweet.text ?? null,

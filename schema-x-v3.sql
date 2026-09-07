@@ -125,3 +125,19 @@ INSERT OR IGNORE INTO x_settings (key, value, updated_at) VALUES ('radar_enabled
 
 -- 腕への反映値（provisional を final で打ち消すために保持）
 ALTER TABLE x_observations ADD COLUMN applied_value REAL;
+
+-- 返信の効果を分けて測るための列（2026-09-08 追加）
+ALTER TABLE x_metrics ADD COLUMN kind TEXT DEFAULT 'original';   -- original | reply
+ALTER TABLE x_metrics ADD COLUMN conversation_id TEXT;
+
+-- オリジナル投稿と返信、それぞれの成績（1件あたりの効率を比べる）
+CREATE TABLE IF NOT EXISTS x_kind_stats (
+  kind TEXT PRIMARY KEY,             -- original | reply
+  window_days INTEGER,
+  n INTEGER,
+  impressions REAL,
+  profile_clicks REAL,
+  est_follows REAL,
+  per_item REAL,                     -- 1件あたりの推定フォロワー獲得
+  updated_at INTEGER
+);

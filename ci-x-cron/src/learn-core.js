@@ -241,8 +241,19 @@ function pickExploration(rng, armsByDim, globalMean) {
 }
 
 // ── 学習台帳（人が読む日本語） ──
-export function buildLedger({ date, armChanges = [], conv, convBefore, postsYesterday = 0, followers, followersDelta, recipes = [], stagnant = false }) {
+export function buildLedger({ date, armChanges = [], conv, convBefore, postsYesterday = 0, followers, followersDelta, recipes = [], stagnant = false, kinds = [] }) {
   const lines = [];
+  // オリジナル投稿 vs 返信の効率。1日15件の返信が本当に効いているかを人が判断できるようにする
+  const org = kinds.find((k) => k.kind === 'original'), rep = kinds.find((k) => k.kind === 'reply');
+  if (org && rep && org.n >= 3 && rep.n >= 5) {
+    const better = rep.per_item > org.per_item ? '返信' : 'オリジナル投稿';
+    const ratio = org.per_item > 0 ? (rep.per_item / org.per_item) : null;
+    lines.push({ kind: 'learn',
+      text: `直近14日: オリジナル${org.n}本=1本あたり${org.per_item.toFixed(2)}人／返信${rep.n}件=1件あたり${rep.per_item.toFixed(2)}人。${better}のほうが効率が高い${ratio ? `（返信はオリジナルの${ratio.toFixed(1)}倍）` : ''}`,
+      evidence: JSON.stringify({ org, rep }) });
+  } else if (rep && rep.n > 0 && (!org || org.n < 3)) {
+    lines.push({ kind: 'learn', text: `返信${rep.n}件の推定フォロー獲得 ${rep.est_follows.toFixed(1)}人（比較にはオリジナル3本以上が必要）`, evidence: JSON.stringify({ rep }) });
+  }
   for (const c of armChanges.slice(0, 3)) {
     lines.push({ kind: 'learn',
       text: `${dimLabel(c.dimension)}「${c.arm}」の推定フォロー ${c.before.toFixed(2)}→${c.after.toFixed(2)}（n=${c.n}）`,
