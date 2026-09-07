@@ -51,11 +51,21 @@
       display: flex; background: var(--surface);
       border-top: 1px solid var(--border);
       padding-bottom: env(safe-area-inset-bottom);
+      flex-shrink: 0;   /* 画面下端に必ず残す（コンテンツが長くても押し出されない） */
     }
     .tab-btn {
       flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px;
       padding: 10px 0; border: none; background: none; cursor: pointer;
       color: var(--muted); font-size: 10px; font-family: inherit;
+      min-width: 0;   /* 6タブでも文字が潰れずに収まるように */
+    }
+    .tab-btn span { white-space: nowrap; }
+    /* Xのロゴ風アイコン。絵文字だと何のタブか分からないため */
+    .x-logo {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 21px; height: 21px; border-radius: 6px;
+      background: #000; color: #fff; font-size: 14px; font-weight: 800; line-height: 1;
+      font-family: Helvetica, Arial, sans-serif; letter-spacing: 0;
     }
     .tab-btn.active { color: var(--primary); }
     .tab-icon { font-size: 21px; position: relative; display: inline-block; }
@@ -459,7 +469,6 @@
         <div id="buzz-dashboard-own"></div>
       </div>
     </div>
-  </div>
 
     <!-- X（灯守） -->
     <div id="view-x" class="view">
@@ -489,8 +498,8 @@
       <span>研究</span>
     </button>
     <button class="tab-btn" onclick="switchTab('x',this)">
-      <div class="tab-icon">🏮<span class="badge" id="b-x" style="display:none"></span></div>
-      <span>X</span>
+      <div class="tab-icon"><span class="x-logo">X</span><span class="badge" id="b-x" style="display:none"></span></div>
+      <span>X運用</span>
     </button>
   </div>
 </div>
@@ -3047,7 +3056,21 @@ async function refreshX() {
     ]);
     xState = { cands: c, stats: s, ledger: l, brief: b, recipes: rc, loadedAt: Date.now() };
   } catch { /* オフライン。前回表示を維持 */ }
+  xUpdateBadge();
   renderXTab();
+}
+
+// 未投稿の候補数をタブのバッジに出す（朝に開く動機になる）
+function xUpdateBadge() {
+  const n = (xState.cands?.candidates || []).filter(c => c.status !== 'posted').length;
+  setBadge('b-x', n);
+}
+// 起動時は候補だけ軽く取ってバッジを立てる（Xタブを開かなくても届いたことが分かる）
+async function xPeek() {
+  try {
+    const c = await fetch('/api/x/candidates').then(r => r.ok ? r.json() : null);
+    if (c) { xState.cands = c; xUpdateBadge(); }
+  } catch { /* オフライン時は何もしない */ }
 }
 
 // X の重み付き文字数（CJK・全角=2）。上限280
@@ -3235,6 +3258,7 @@ renderReview();
 renderDailyRec();
 fetchDailyRec();
 updateBadges();
+xPeek();
 // 起動時に結果をD1へ同期（初回は全履歴のバックフィル、以降は未送信分の再送）
 if (historyList.length > 0) syncResults();
 // 起動時にバズ・ライブラリの未同期分を再送。オンライン復帰時も同様に再送する
