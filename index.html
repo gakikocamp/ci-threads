@@ -3233,7 +3233,7 @@ function renderXTab() {
     ${today ? `<div class="daily-insight" style="margin:0 0 12px;"><strong>👥 フォロワー ${xFmt(today.followers)}</strong>${delta7 != null ? `（7日 ${delta7 >= 0 ? '+' : ''}${xFmt(delta7)}）` : ''}<br><span style="font-size:11px">${esc(spark)}</span></div>` : ''}
     ${healthHtml}
 
-    <div class="section-header">☀️ 今日の候補（X）${c?.date ? `<span class="daily-date">${esc(c.date)}</span>` : ''}${c?.cadence_per_day ? `<span class="daily-date">1日${c.cadence_per_day}本</span>` : ''}</div>
+    <div class="section-header">☀️ 今日の候補（X）${c?.date ? `<span class="daily-date">${esc(c.date)}${c.cadence_per_day ? `・1日${c.cadence_per_day}本` : ''}</span>` : ''}</div>
     ${candHtml}
 
     <div class="section-header" style="margin-top:22px;">📓 学習台帳</div>
