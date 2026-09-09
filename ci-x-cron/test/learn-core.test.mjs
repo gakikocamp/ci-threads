@@ -274,3 +274,31 @@ test('台帳: データ不足なら断定せず、返信の実数だけ出す', 
   const t = lines.map((l) => l.text).join(' ');
   assert.ok(t.includes('返信12件') && t.includes('比較にはオリジナル3本以上'), t);
 });
+
+test('レシピ: 同じ日の3本で燃料が重複しない', () => {
+  const many = {
+    ...armsByDim,
+    fact: ['f1', 'f2', 'f3', 'f4'].map((arm) => ({ arm, n: 1, mean: 1, m2: 0, prior_mean: 1, prior_n: 2 })),
+  };
+  const r = buildRecipes({ date: '2026-09-25', armsByDim: many, ctx: baseCtx, globalMean: 1 });
+  const used = r.filter((x) => x.constraint_ok).flatMap((x) => x.fact_ids);
+  assert.equal(new Set(used).size, used.length, `燃料が重複: ${used.join(',')}`);
+});
+
+test('レシピ: 燃料の在庫が足りない時は重複を許してでも3本作る', () => {
+  const scarce = { ...armsByDim, fact: [{ arm: 'only1', n: 1, mean: 1, m2: 0, prior_mean: 1, prior_n: 2 }] };
+  const r = buildRecipes({ date: '2026-09-26', armsByDim: scarce, ctx: baseCtx, globalMean: 1 });
+  assert.equal(r.filter((x) => x.constraint_ok).length, 3, JSON.stringify(r));
+  assert.ok(r.every((x) => x.fact_ids[0] === 'only1'));
+});
+test('レシピ: 14日ルールで弾かれた燃料は在庫切れでも復活しない', () => {
+  const two = { ...armsByDim, fact: [
+    { arm: 'blocked', n: 1, mean: 1, m2: 0, prior_mean: 5, prior_n: 2 },
+    { arm: 'ok1', n: 1, mean: 1, m2: 0, prior_mean: 1, prior_n: 2 },
+  ] };
+  const ctx = { ...baseCtx, factLastUsed: { blocked: '2026-09-24' } };
+  const r = buildRecipes({ date: '2026-09-26', armsByDim: two, ctx, globalMean: 1 });
+  const used = r.filter((x) => x.constraint_ok).flatMap((x) => x.fact_ids);
+  assert.ok(used.length >= 3, JSON.stringify(r));
+  assert.ok(!used.includes('blocked'), `使用済み燃料が復活: ${used.join(',')}`);
+});

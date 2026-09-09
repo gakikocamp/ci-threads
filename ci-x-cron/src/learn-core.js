@@ -167,8 +167,12 @@ export function buildRecipes({ date, armsByDim, ctx, globalMean = 1, exploration
   const recipes = [];
   const usedPatterns = new Set();
 
-  // 制約で弾かれた腕は以降の抽選から除外する（同じ腕を引き続けて無駄打ちしないため）
-  const excluded = { pattern: new Set(), hook: new Set(), fact: new Set(), slot: new Set(), format: new Set() };
+  // 制約で弾かれた腕は以降の抽選から除外する（同じ腕を引き続けて無駄打ちしないため）。
+  // `:hard` は「憲法・制約に反するので在庫切れでも復活させてはいけない」腕。
+  const excluded = {
+    pattern: new Set(), hook: new Set(), fact: new Set(), slot: new Set(), format: new Set(),
+    'fact:hard': new Set(), 'hook:hard': new Set(), 'slot:hard': new Set(), 'format:hard': new Set(),
+  };
 
   for (let rank = 1; rank <= 3; rank++) {
     const wantExploration = rank === 3 || (rank === 1 && explorationDeficit >= 2);
@@ -183,29 +187,40 @@ export function buildRecipes({ date, armsByDim, ctx, globalMean = 1, exploration
       const chk = checkConstraints(cand, ctx);
       violations = chk.violations;
       if (chk.ok) chosen = cand;
-      else for (const b of chk.blocked) excluded[b.dimension]?.add(b.arm);
+      else for (const b of chk.blocked) {
+        excluded[b.dimension]?.add(b.arm);
+        excluded[`${b.dimension}:hard`]?.add(b.arm);   // 制約違反は在庫切れでも復活させない
+      }
     }
 
     if (!chosen) {
       recipes.push({ rank, date, constraint_ok: 0, is_exploration: wantExploration ? 1 : 0,
-        rationale: `制約を満たす組合せを5回で作れなかった: ${violations.join(' / ')}`, violations });
+        rationale: `制約を満たす組合せを8回で作れなかった: ${violations.join(' / ')}`, violations });
       continue;
     }
     usedPatterns.add(chosen.pattern);
+    // 同じ日の3本で燃料が重ならないようにする（同じ一次情報を2案に使っても選択肢にならない）
+    for (const fid of chosen.fact_ids || []) excluded.fact.add(fid);
     recipes.push({ ...chosen, rank, date, constraint_ok: 1, is_exploration: wantExploration ? 1 : 0 });
   }
   return recipes;
 }
 
-// 除外集合と既出の型を落とした候補プールを作る
+// 除外集合と既出の型を落とした候補プールを作る。
+// 型以外は、除外し切って空になったら「重複を許す」方に倒す（レシピが作れないより重複の方がまし）。
+// 型だけは厳格に保つ（同じ日に同じ型を2本出すのは選択肢にならないため）。
 function filterArms(armsByDim, excluded, usedPatterns) {
   const out = {};
   for (const dim of DIMENSIONS) {
-    out[dim] = (armsByDim[dim] || []).filter((a) => {
+    const all = armsByDim[dim] || [];
+    const strict = all.filter((a) => {
       if (excluded[dim]?.has(a.arm)) return false;
       if (dim === 'pattern' && (usedPatterns.has(a.arm) || DEAD_PATTERNS.includes(a.arm))) return false;
       return true;
     });
+    if (dim === 'pattern' || strict.length > 0) { out[dim] = strict; continue; }
+    // 在庫切れ: 制約由来の除外だけは残し、同日内の重複回避は諦める
+    out[dim] = all.filter((a) => !excluded[`${dim}:hard`]?.has(a.arm));
   }
   return out;
 }

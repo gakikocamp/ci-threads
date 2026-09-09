@@ -13,7 +13,7 @@ database_id = "2b26763a-7369-424c-a8ee-8421e21b06d2"
 crons = ["0 18 * * *"]
 
 [vars]
-DRY_RUN = "0"
+DRY_RUN = "1"
 RADAR_TOP_N = "10"
 RADAR_POSTS_PER = "5"
 MAX_READS_PER_DAY = "400"
