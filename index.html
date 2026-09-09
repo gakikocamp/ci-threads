@@ -266,6 +266,10 @@
       letter-spacing: 0.6px; margin: 14px 0 8px; }
     .dash-subhead:first-child { margin-top: 0; }
     .dash-empty { font-size: 12px; color: var(--muted); line-height: 1.7; }
+    /* アカウント健康度: トレンド色 */
+    .trend-up { color: var(--success); font-weight: 700; }
+    .trend-down { color: var(--danger); font-weight: 700; }
+    .trend-flat { color: var(--muted); font-weight: 700; }
 
     /* 今日の推奨投稿カード */
     .daily-card {
@@ -458,7 +462,13 @@
       <div class="chip-filter-row" id="buzz-tag-filter"></div>
       <div id="buzz-list"></div>
 
-      <!-- c) 傾向ダッシュボード -->
+      <!-- c) アカウント健康度（実測データ） -->
+      <div class="section-header">📊 アカウント健康度</div>
+      <div class="gen-card">
+        <div id="account-health"></div>
+      </div>
+
+      <!-- d) 傾向ダッシュボード -->
       <div class="section-header">📈 傾向ダッシュボード</div>
       <div class="gen-card">
         <h3>ライブラリの傾向</h3>
@@ -2670,6 +2680,10 @@ let buzzPending = loadState('ci_buzz_pending', '[]'); // 未同期のid一覧
 let buzzTagFilter = 'all';
 let buzzExpanded = {}; // id -> 展開表示中か
 
+// ---- アカウント健康度／自社傾向（/api/results の実測データ。org-ci-* のみ実投稿）----
+const RESULTS_URL = SYNC_URL; // 同じ /api/results を使う
+let ownStats = loadState('ci_own_stats', 'null'); // サーバー同期済みキャッシュ（配列 | null）
+
 function saveBuzzLocal() {
   localStorage.setItem('ci_buzz_lib',     JSON.stringify(buzzLibrary));
   localStorage.setItem('ci_buzz_pending', JSON.stringify(buzzPending));
@@ -2778,10 +2792,43 @@ async function fetchBuzzLibrary() {
   } catch { /* オフライン等。ローカルキャッシュの表示を維持 */ }
 }
 
+// ---- 自社実測データ取得（/api/results。id が org-ci- で始まるものだけが実投稿）----
+// それ以外（2026-W31-039 等）はアプリ上で「投稿済み」にした下書きのマーカーであり実測ではないため除外する。
+async function fetchOwnResults() {
+  try {
+    const res = await fetch(RESULTS_URL);
+    if (!res.ok) return;
+    const data = await res.json();
+    const posts = Array.isArray(data.posts) ? data.posts : [];
+    ownStats = posts
+      .filter(p => typeof p.id === 'string' && p.id.startsWith('org-ci-'))
+      .map(p => {
+        const theme = p.theme || '';
+        // theme形式: [@アカウント名 ❤いいね数 view:na] 見出し
+        const accountMatch = theme.match(/@([A-Za-z0-9_.]+)/);
+        const likesMatch = theme.match(/❤(\d+)/);
+        return {
+          id: p.id,
+          account: accountMatch ? accountMatch[1] : 'unknown',
+          likes: likesMatch ? parseInt(likesMatch[1], 10) : null,
+          result: p.result || null,
+          pattern: p.pattern || '不明',
+          postedAt: p.posted_at || null,
+          theme
+        };
+      });
+    localStorage.setItem('ci_own_stats', JSON.stringify(ownStats));
+    renderAccountHealth();
+    renderBuzzDashboardOwn();
+  } catch { /* オフライン等。キャッシュ表示を維持 */ }
+}
+
 function openResearchTab() {
   renderBuzzList();
   renderBuzzDashboard();
+  renderAccountHealth();
   syncBuzzPending().then(() => fetchBuzzLibrary());
+  fetchOwnResults();
 }
 
 // ---- Render: タグ絞り込みチップ ----
@@ -2932,31 +2979,116 @@ function renderBuzzDashboardLib() {
     ${hookRows}`;
 }
 
-function renderBuzzDashboardOwn() {
-  const el = document.getElementById('buzz-dashboard-own');
-  const labeled = historyList.filter(p => ['buzz', 'ok', 'miss'].includes(p.result));
-  if (labeled.length < 3) {
-    el.innerHTML = `<div class="dash-empty">結果を記録すると自社傾向が育ちます（現在${labeled.length}件）</div>`;
+// ---- Render: アカウント健康度（実測データ。/api/results の org-ci-* のみ集計）----
+function renderAccountHealth() {
+  const el = document.getElementById('account-health');
+  if (!el) return;
+  const stats = ownStats || [];
+  if (stats.length === 0) {
+    el.innerHTML = `<div class="dash-empty">実測データがまだありません（Threadsへ投稿・計測されると表示されます）</div>`;
     return;
   }
-  const stats = {};
-  labeled.forEach(p => {
-    const pt = p.pattern || '不明';
-    if (!stats[pt]) stats[pt] = { buzz: 0, n: 0 };
-    stats[pt].n++;
-    if (p.result === 'buzz') stats[pt].buzz++;
+
+  // アカウント別グループ化
+  const byAccount = {};
+  stats.forEach(p => {
+    const acc = p.account || 'unknown';
+    (byAccount[acc] = byAccount[acc] || []).push(p);
   });
-  const rows = Object.entries(stats)
-    .filter(([, s]) => s.n >= 2)
-    .sort((a, b) => (b[1].buzz / b[1].n) - (a[1].buzz / a[1].n))
-    .map(([pt, s]) => {
-      const rate = Math.round(s.buzz / s.n * 100);
-      return `<div class="dash-row">
-        <div class="dash-row-label"><span>${esc(pt)}</span><span>バズ率${rate}%（${s.n}件）</span></div>
-        <div class="dash-bar-track"><div class="dash-bar-fill" style="width:${rate}%"></div></div>
-      </div>`;
-    }).join('');
-  el.innerHTML = rows || `<div class="dash-empty">2件以上記録があるパターンがまだありません</div>`;
+
+  const summaries = Object.entries(byAccount).map(([account, posts]) => {
+    // いいねが取れた投稿だけを新しい順に並べて平均を出す（likesがnullの件は平均計算から除外）
+    const withLikes = posts
+      .filter(p => p.likes !== null && p.likes !== undefined)
+      .sort((a, b) => (b.postedAt || 0) - (a.postedAt || 0));
+    const recent5 = withLikes.slice(0, 5);
+    const prev5   = withLikes.slice(5, 10);
+    const recentAvg = recent5.length > 0 ? Math.round(recent5.reduce((s, p) => s + p.likes, 0) / recent5.length) : null;
+    const prevAvg   = prev5.length > 0 ? Math.round(prev5.reduce((s, p) => s + p.likes, 0) / prev5.length) : null;
+
+    let trendLabel = '—', trendClass = 'trend-flat';
+    if (recentAvg !== null && prevAvg !== null && prevAvg > 0) {
+      if (recentAvg >= prevAvg * 1.2)      { trendLabel = '↗ 上昇'; trendClass = 'trend-up'; }
+      else if (recentAvg <= prevAvg * 0.8) { trendLabel = '↘ 低下'; trendClass = 'trend-down'; }
+      else                                  { trendLabel = '→ 横ばい'; trendClass = 'trend-flat'; }
+    }
+
+    const labeled = posts.filter(p => ['buzz', 'ok', 'miss'].includes(p.result));
+    const buzzRate = labeled.length > 0 ? Math.round(labeled.filter(p => p.result === 'buzz').length / labeled.length * 100) : null;
+    const maxLikes = withLikes.length > 0 ? Math.max(...withLikes.map(p => p.likes)) : null;
+
+    return { account, recentAvg, prevAvg, trendLabel, trendClass, buzzRate, labeledN: labeled.length, maxLikes };
+  })
+    .filter(s => s.recentAvg !== null) // いいね実測がまだ無いアカウントは対象外
+    .sort((a, b) => b.recentAvg - a.recentAvg);
+
+  if (summaries.length === 0) {
+    el.innerHTML = `<div class="dash-empty">実測データがまだありません（いいね数を取得できた投稿がありません）</div>`;
+    return;
+  }
+
+  const rows = summaries.map(s => `
+    <div class="dash-subhead" style="text-transform:none;">@${esc(s.account)}</div>
+    <div class="dash-row">
+      <div class="dash-row-label"><span>直近5投稿の平均いいね</span><span>❤️${s.recentAvg}</span></div>
+    </div>
+    <div class="dash-row">
+      <div class="dash-row-label"><span>トレンド（前5投稿比）</span><span class="${s.trendClass}">${s.trendLabel}${s.prevAvg !== null ? `（前❤️${s.prevAvg}）` : ''}</span></div>
+    </div>
+    <div class="dash-row">
+      <div class="dash-row-label"><span>バズ率</span><span>${s.buzzRate !== null ? `${s.buzzRate}%（${s.labeledN}件）` : '—'}</span></div>
+    </div>
+    <div class="dash-row">
+      <div class="dash-row-label"><span>最高いいね</span><span>❤️${s.maxLikes}</span></div>
+    </div>`).join('');
+
+  // 推奨行: 直近5平均が最も高いアカウントを提案（データ不足＝比較対象1件以下なら非表示）
+  let recommendation = '';
+  if (summaries.length >= 2 && summaries[0].recentAvg > summaries[1].recentAvg) {
+    const [top, second] = summaries;
+    recommendation = `<div class="dash-empty" style="margin-top:8px;">👉 今は @${esc(top.account)} で打つ方が届いています（直近平均❤️${top.recentAvg} vs ❤️${second.recentAvg}）</div>`;
+  }
+
+  el.innerHTML = rows + recommendation;
+}
+
+// ---- Render: 自社投稿の傾向（実測データ。/api/results の org-ci-* のみ・アカウント別にパターン成績を分ける）----
+function renderBuzzDashboardOwn() {
+  const el = document.getElementById('buzz-dashboard-own');
+  const labeled = (ownStats || []).filter(p => ['buzz', 'ok', 'miss'].includes(p.result));
+  if (labeled.length === 0) {
+    el.innerHTML = `<div class="dash-empty">実測データがまだありません</div>`;
+    return;
+  }
+
+  const byAccount = {};
+  labeled.forEach(p => {
+    const acc = p.account || 'unknown';
+    (byAccount[acc] = byAccount[acc] || []).push(p);
+  });
+
+  const sections = Object.entries(byAccount).map(([account, posts]) => {
+    const stats = {};
+    posts.forEach(p => {
+      const pt = p.pattern || '不明';
+      if (!stats[pt]) stats[pt] = { buzz: 0, n: 0 };
+      stats[pt].n++;
+      if (p.result === 'buzz') stats[pt].buzz++;
+    });
+    const rows = Object.entries(stats)
+      .filter(([, s]) => s.n >= 2)
+      .sort((a, b) => (b[1].buzz / b[1].n) - (a[1].buzz / a[1].n))
+      .map(([pt, s]) => {
+        const rate = Math.round(s.buzz / s.n * 100);
+        return `<div class="dash-row">
+          <div class="dash-row-label"><span>${esc(pt)}</span><span>バズ率${rate}%（${s.n}件）</span></div>
+          <div class="dash-bar-track"><div class="dash-bar-fill" style="width:${rate}%"></div></div>
+        </div>`;
+      }).join('');
+    return `<div class="dash-subhead" style="text-transform:none;">@${esc(account)}</div>${rows || `<div class="dash-empty">2件以上記録があるパターンがまだありません</div>`}`;
+  }).join('');
+
+  el.innerHTML = sections;
 }
 
 // ---- 一度きりの整理（2026-07-22）: レビューを国産バズ研究ドラフト(2026-W30-buzz)だけにする ----
