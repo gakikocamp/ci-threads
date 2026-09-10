@@ -300,7 +300,9 @@ export function checkInvariants(state) {
     i1: state.metricsToday >= state.postsLast14d,
     i2: !!state.accountRowToday,
     i3: state.pendingFinalizations === 0,
-    i4: state.armsUpdatedToday > 0,
+    // 腕は「測れる投稿があった時だけ」更新される。投稿から48時間たった投稿が1本も無い立ち上げ期に
+    // 警告を出すと、本当の故障が埋もれる（狼少年になる）ので、対象ゼロなら成立とみなす
+    i4: state.armsUpdatedToday > 0 || (state.eligibleObservations ?? 0) === 0,
     i5: state.recipesTomorrow === 3 && state.recipesConstraintOk === 3,
     i6: state.ledgerRowsToday >= 1,
     i7: state.convRecomputedToday,

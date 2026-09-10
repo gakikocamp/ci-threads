@@ -24,7 +24,7 @@ export async function runLearn(env) {
   const armChanges = await updateArms(env, observations, factStrengths, now);
   const recipes = await planTomorrow(env, tomorrow, today, factStrengths, now);
   const ledger = await writeLedger(env, today, { armChanges, conv, recipes, kinds });
-  const health = await verify(env, today, tomorrow, recipes, armChanges, ledger, now);
+  const health = await verify(env, today, tomorrow, recipes, armChanges, ledger, now, observations.length);
 
   await logGuard(env, 'worker', 'learn', health.allOk ? 'ok' : 'error',
     `obs=${observations.length} arms=${armChanges.length} recipes=${recipes.length} ledger=${ledger.length} health=${health.allOk ? 'OK' : health.failed.join(',')}`);
@@ -365,7 +365,7 @@ async function writeLedger(env, today, { armChanges, conv, recipes, kinds = [] }
 }
 
 // ── 不変条件 I1〜I7 ──
-async function verify(env, today, tomorrow, recipes, armChanges, ledger, now) {
+async function verify(env, today, tomorrow, recipes, armChanges, ledger, now, eligibleObservations = 0) {
   const since = addDaysStr(today, -14);
   const posts14 = await env.DB.prepare(
     `SELECT COUNT(*) AS n FROM x_queue WHERE status = 'posted' AND date >= ?1 AND tweet_id IS NOT NULL`
@@ -392,6 +392,7 @@ async function verify(env, today, tomorrow, recipes, armChanges, ledger, now) {
     recipesConstraintOk: recipes.filter((r) => r.constraint_ok).length,
     ledgerRowsToday: ledgerToday?.n || 0,
     convRecomputedToday: (await getSetting(env, 'conv_updated')) === today,
+    eligibleObservations,   // 48時間たって測れる投稿の数。0なら腕が動かなくても正常
   };
   const inv = checkInvariants(state);
 

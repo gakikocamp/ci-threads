@@ -302,3 +302,12 @@ test('レシピ: 14日ルールで弾かれた燃料は在庫切れでも復活�
   assert.ok(used.length >= 3, JSON.stringify(r));
   assert.ok(!used.includes('blocked'), `使用済み燃料が復活: ${used.join(',')}`);
 });
+
+test('不変条件: 測れる投稿が0本の立ち上げ期はI4を警告しない（狼少年にしない）', () => {
+  const base = { metricsToday: 1, postsLast14d: 1, accountRowToday: true, pendingFinalizations: 0,
+    armsUpdatedToday: 0, recipesTomorrow: 3, recipesConstraintOk: 3, ledgerRowsToday: 2, convRecomputedToday: true };
+  assert.equal(checkInvariants({ ...base, eligibleObservations: 0 }).allOk, true, '対象0なら成立');
+  const withData = checkInvariants({ ...base, eligibleObservations: 3 });
+  assert.equal(withData.allOk, false, '測れる投稿があるのに腕が動かないのは異常');
+  assert.deepEqual(withData.failed, ['I4']);
+});
