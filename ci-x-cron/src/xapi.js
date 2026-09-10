@@ -50,15 +50,19 @@ export async function getMe(env) {
 }
 
 // GET /2/users/:id/tweets — 自分/監視対象の直近投稿。exclude=retweets でRT除外
-export async function getUserTweets(env, userId, { maxResults = 100, sinceDays = 14 } = {}) {
+// excludeReplies=true にすると返信も除外する。返信を1日15件出すと100件枠が6日分で埋まり、
+// 学習が成績を確定する7日目より前にオリジナル投稿が計測の窓から押し出されるため、
+// オリジナルは必ず別枠で取り切る（metrics.js が2回に分けて呼ぶ）。
+export async function getUserTweets(env, userId, { maxResults = 100, sinceDays = 14, excludeReplies = false } = {}) {
   const startTime = new Date(Date.now() - sinceDays * 24 * 60 * 60 * 1000).toISOString();
   // referenced_tweets / in_reply_to_user_id は「返信かどうか」の判定に使う（返信の効果を分けて測るため）
   const fields =
     'tweet.fields=created_at,public_metrics,non_public_metrics,organic_metrics,attachments,referenced_tweets,in_reply_to_user_id,conversation_id';
   // X API v2 の max_results は 5〜100 の範囲制約があるため下限をクランプする（RADAR_POSTS_PERを5未満にすると本来はAPI側で400になる）
   const pageSize = Math.min(100, Math.max(5, maxResults));
+  const exclude = excludeReplies ? 'retweets,replies' : 'retweets';
   let url =
-    `${BASE}/users/${userId}/tweets?${fields}&exclude=retweets` +
+    `${BASE}/users/${userId}/tweets?${fields}&exclude=${exclude}` +
     `&start_time=${encodeURIComponent(startTime)}&max_results=${pageSize}`;
 
   const collected = [];

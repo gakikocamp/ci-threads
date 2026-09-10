@@ -97,3 +97,14 @@ test('rankByGrowth: growth7降順でrank付与、nullは最後尾', () => {
   assert.deepEqual(ranked.map((r) => r.handle), ['b', 'd', 'a', 'c']);
   assert.deepEqual(ranked.map((r) => r.rank), [1, 2, 3, 4]);
 });
+
+// 返信の判別（種類別の効率比較の土台）
+test('classifyKind: 返信・自分へのスレッド・オリジナルを見分ける', async () => {
+  const { classifyKind } = await import('../src/extract.js');
+  assert.equal(classifyKind({ id: '1' }), 'original');
+  assert.equal(classifyKind({ id: '2', referenced_tweets: [{ type: 'replied_to', id: '9' }], in_reply_to_user_id: '999' }), 'reply');
+  // 自分のツリー（自分への返信）は連投なので original 扱い
+  assert.equal(classifyKind({ id: '3', referenced_tweets: [{ type: 'replied_to', id: '2' }], in_reply_to_user_id: '111' }, '111'), 'original');
+  // 引用は返信ではない
+  assert.equal(classifyKind({ id: '4', referenced_tweets: [{ type: 'quoted', id: '9' }] }), 'original');
+});

@@ -17,6 +17,7 @@ DRY_RUN = "1"
 RADAR_TOP_N = "10"
 RADAR_POSTS_PER = "5"
 MAX_READS_PER_DAY = "400"
+REPLY_SAMPLE = "60"        # 返信の計測サンプル数/日。0にすれば返信を測らず費用を下げられる
 SELF_HANDLE = "crystalinsence"
 
 # secrets（値はコード管理しない。本人が wrangler secret put で投入）:

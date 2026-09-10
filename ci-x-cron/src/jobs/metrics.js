@@ -15,7 +15,23 @@ export async function runMetrics(env) {
     return { skipped: true, reads: 0, error: 'no self_user_id' };
   }
 
-  const { data: tweets, readCount } = await getUserTweets(env, selfId, { maxResults: 100, sinceDays: 14 });
+  // ① オリジナル投稿は必ず全件取る（学習が成績を確定する7日目まで窓から落ちてはいけない）
+  const originals = await getUserTweets(env, selfId, { maxResults: 100, sinceDays: 14, excludeReplies: true });
+  // ② 返信は直近ぶんをサンプルとして取る（種類別の効率比較に使うだけなので全件でなくてよい）
+  const replyBudget = parseInt(env.REPLY_SAMPLE || '60', 10);
+  const withReplies = replyBudget > 0
+    ? await getUserTweets(env, selfId, { maxResults: replyBudget, sinceDays: 14 })
+    : { data: [], readCount: 0 };
+
+  // 重複を排除して1本のリストにする（②にはオリジナルも混ざる）
+  const seen = new Set();
+  const tweets = [];
+  for (const t of [...originals.data, ...withReplies.data]) {
+    if (seen.has(t.id)) continue;
+    seen.add(t.id);
+    tweets.push(t);
+  }
+  const readCount = originals.readCount + withReplies.readCount;
   await addReads(env, readCount);
 
   const snapDate = jstDateString();
