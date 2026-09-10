@@ -1,8 +1,13 @@
 // 自アカウント(/2/users/me)のフォロワー数等を x_account_daily に記録し、user idを設定にキャッシュする
 import { getMe } from '../xapi.js';
-import { jstDateString, logGuard, addReads, setSetting } from '../util.js';
+import { jstDateString, logGuard, addReads, setSetting, getSetting } from '../util.js';
 
 export async function runSelf(env) {
+  // X API未契約のあいだは呼ばない（成績はアプリから手入力される）
+  if ((await getSetting(env, 'x_api_enabled')) !== '1' && env.X_API_ENABLED !== '1') {
+    await logGuard(env, 'worker', 'self', 'ok', 'X API未契約のため手入力モード（アプリの「結果を記録」から入る）');
+    return { skipped: true, manual: true };
+  }
   if (env.DRY_RUN === '1') {
     await logGuard(env, 'worker', 'self', 'ok', 'DRY_RUN: GET /2/users/me を呼ぶ予定だった');
     return { skipped: true, reads: 0 };

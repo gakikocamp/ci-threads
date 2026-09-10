@@ -13,7 +13,10 @@ database_id = "2b26763a-7369-424c-a8ee-8421e21b06d2"
 crons = ["0 18 * * *"]
 
 [vars]
-DRY_RUN = "1"
+# X API未契約の運用（2026-09-10 CEO判断）。0のあいだ self/metrics は呼ばず、
+# 成績はアプリの「📊 結果を記録」から手で入る。学習ジョブは同じように動く。
+X_API_ENABLED = "0"
+DRY_RUN = "0"
 RADAR_TOP_N = "10"
 RADAR_POSTS_PER = "5"
 MAX_READS_PER_DAY = "400"

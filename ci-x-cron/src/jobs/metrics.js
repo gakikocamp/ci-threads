@@ -4,6 +4,11 @@ import { extractMetricRow, matchQueueToTweet } from '../extract.js';
 import { jstDateString, logGuard, addReads, getSetting } from '../util.js';
 
 export async function runMetrics(env) {
+  // X API未契約のあいだは呼ばない（成績はアプリから手入力される）
+  if ((await getSetting(env, 'x_api_enabled')) !== '1' && env.X_API_ENABLED !== '1') {
+    await logGuard(env, 'worker', 'metrics', 'ok', 'X API未契約のため手入力モード（アプリの「結果を記録」から入る）');
+    return { skipped: true, manual: true };
+  }
   if (env.DRY_RUN === '1') {
     await logGuard(env, 'worker', 'metrics', 'ok', 'DRY_RUN: GET /2/users/:id/tweets(直近14日) を呼ぶ予定だった');
     return { skipped: true, reads: 0 };

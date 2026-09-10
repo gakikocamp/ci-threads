@@ -1,8 +1,13 @@
 // x_metricsの最新スナップショット×x_queue.patternを結合し、型ごとの平均成績を x_pattern_stats に反映する
 import { aggregatePatternStats, computeConversionRate } from '../extract.js';
-import { jstDateString, addDaysStr, logGuard } from '../util.js';
+import { jstDateString, addDaysStr, logGuard, getSetting } from '../util.js';
 
 export async function runPatterns(env) {
+  // X API未契約のあいだは呼ばない（成績はアプリから手入力される）
+  if ((await getSetting(env, 'x_api_enabled')) !== '1' && env.X_API_ENABLED !== '1') {
+    await logGuard(env, 'worker', 'patterns', 'ok', 'X API未契約のため手入力モード（アプリの「結果を記録」から入る）');
+    return { skipped: true, manual: true };
+  }
   if (env.DRY_RUN === '1') {
     await logGuard(env, 'worker', 'patterns', 'ok', 'DRY_RUN: x_metrics/x_queue の集計のみ（API呼び出しなし）');
     return { skipped: true };

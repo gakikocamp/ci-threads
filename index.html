@@ -337,6 +337,15 @@
     .x-recipe.ng { opacity: .55; }
     .x-recipe b { margin-right: 6px; }
     .x-recipe-why { font-size: 11px; color: var(--muted); line-height: 1.6; margin-top: 4px; }
+    /* 手入力の結果記録フォーム */
+    .x-result { margin-top: 12px; padding: 12px 14px; background: var(--bg); border-radius: 10px;
+      border-left: 3px solid var(--accent); }
+    .x-rgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 10px 0; }
+    .x-rgrid label { display: flex; flex-direction: column; gap: 3px; font-size: 11px; color: var(--muted); }
+    .x-rgrid input { padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px;
+      font-size: 15px; font-family: inherit; background: var(--surface); color: var(--text); }
+    .x-manual { font-size: 12px; color: var(--muted); background: var(--bg); border-radius: 8px;
+      padding: 9px 12px; margin-bottom: 12px; line-height: 1.6; }
   </style>
 </head>
 <body>
@@ -3182,11 +3191,11 @@ async function refreshX() {
   const jstNow = new Date(Date.now() + 9 * 3600000);
   const tomorrow = new Date(jstNow.getTime() + 86400000).toISOString().slice(0, 10);
   try {
-    const [c, s, l, b, rc] = await Promise.all([
+    const [c, s, l, b, rc, res] = await Promise.all([
       get('/api/x/candidates'), get('/api/x/stats'), get('/api/x/ledger?days=14'),
-      get('/api/x/brief?kind=daily'), get(`/api/x/recipes?date=${tomorrow}`),
+      get('/api/x/brief?kind=daily'), get(`/api/x/recipes?date=${tomorrow}`), get('/api/x/results'),
     ]);
-    xState = { cands: c, stats: s, ledger: l, brief: b, recipes: rc, loadedAt: Date.now() };
+    xState = { cands: c, stats: s, ledger: l, brief: b, recipes: rc, results: res, loadedAt: Date.now() };
   } catch { /* オフライン。前回表示を維持 */ }
   xUpdateBadge();
   renderXTab();
@@ -3255,6 +3264,56 @@ async function xMark(id, status) {
 function xFmt(n) { return n == null ? '—' : Number(n).toLocaleString('ja-JP'); }
 function xTime(ts) { return ts ? new Date(ts).toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : ''; }
 
+// ---- 手入力の結果記録（X APIを契約しない運用の要）----
+// Xの投稿をタップすると本人には無料でアナリティクスが見える。その数字をここに入れれば、
+// 学習エンジンはAPI経由の計測とまったく同じように動く。
+let xOpenResultFor = null;
+
+function xRecorded(k) {
+  const rec = xState.results?.recorded || [];
+  return !!k.tweet_id && rec.some(r => r.tweet_id === k.tweet_id);
+}
+function xOpenResult(id) {
+  xOpenResultFor = (xOpenResultFor === id) ? null : id;
+  renderXTab();
+  if (xOpenResultFor) setTimeout(() => document.getElementById('xr-imp')?.focus(), 50);
+}
+function xResultForm(k) {
+  if (xOpenResultFor !== k.id) return '';
+  const prev = (xState.results?.recorded || []).find(r => r.tweet_id === k.tweet_id) || {};
+  const f = xState.results?.followers ?? '';
+  return `
+    <div class="x-result">
+      <div class="reply-label">Xの投稿を開いて「ポストアナリティクス」の数字を入れてください</div>
+      <div class="x-rgrid">
+        <label>インプレッション<input id="xr-imp" type="number" inputmode="numeric" value="${prev.impressions ?? ''}" placeholder="必須"></label>
+        <label>プロフィールクリック<input id="xr-pc" type="number" inputmode="numeric" value="${prev.profile_clicks ?? ''}" placeholder="0"></label>
+        <label>いいね<input id="xr-like" type="number" inputmode="numeric" placeholder="0"></label>
+        <label>返信<input id="xr-rep" type="number" inputmode="numeric" placeholder="0"></label>
+        <label>リポスト<input id="xr-rt" type="number" inputmode="numeric" placeholder="0"></label>
+        <label>ブックマーク<input id="xr-bm" type="number" inputmode="numeric" placeholder="0"></label>
+        <label style="grid-column:1/-1;">今日のフォロワー数<input id="xr-fol" type="number" inputmode="numeric" value="${f}" placeholder="プロフィールの数字"></label>
+      </div>
+      <div class="daily-actions">
+        <button class="btn-sm btn-copy-main" onclick="xSaveResult('${esc(k.id)}')">保存</button>
+        <button class="btn-sm" style="background:#eee;color:#666;" onclick="xOpenResult('${esc(k.id)}')">閉じる</button>
+      </div>
+      <div style="font-size:11px;color:var(--muted);margin-top:8px;line-height:1.6;">
+        投稿から48時間たった数字がいちばん学習に効きます。7日目にもう一度入れ直すと確定値になります。
+      </div>
+    </div>`;
+}
+async function xSaveResult(id) {
+  const v = (x) => document.getElementById(x)?.value ?? '';
+  const imp = v('xr-imp');
+  if (!imp) { showToast('インプレッションは必須です'); return; }
+  const r = await xAdminFetch('/api/x/results', {
+    queue_id: id, impressions: imp, profile_clicks: v('xr-pc'), likes: v('xr-like'),
+    replies: v('xr-rep'), reposts: v('xr-rt'), bookmarks: v('xr-bm'), followers: v('xr-fol'),
+  });
+  if (r) { showToast('📊 記録しました'); xOpenResultFor = null; await refreshX(); }
+}
+
 // レシピの5つのダイヤル（型・フック・燃料・時間帯・形式）をチップで見せる
 function xDials(k) {
   const dials = [];
@@ -3273,6 +3332,9 @@ function renderXTab() {
   const c = xState.cands, s = xState.stats;
   const brief = xState.brief?.brief;
   const briefHtml = brief ? `<div class="daily-card" style="margin-bottom:12px;"><div class="reply-label">📋 今日のブリーフ</div><div style="font-size:13.5px;line-height:1.8;white-space:pre-wrap;">${esc(brief.text)}</div></div>` : '';
+  // X APIを契約していない運用では、投稿の数字を手で入れることが学習の燃料になる
+  const todayFollowers = xState.results?.followers;
+  const manualHtml = `<div class="x-manual">📝 手入力モード：Xの投稿をタップ →「ポストアナリティクス」の数字を「📊 結果を記録」に入れると、翌朝の候補が賢くなります。${todayFollowers == null ? '<br><b>今日のフォロワー数がまだ未記録です。</b>' : ''}</div>`;
   const admin = !!xAdminToken();
   const acct = s?.account || [];
   const today = acct[0], weekAgo = acct.find(a => a.date <= (today ? new Date(new Date(today.date).getTime() - 7 * 86400000).toISOString().slice(0, 10) : ''));
@@ -3315,8 +3377,10 @@ function renderXTab() {
             ${k.reply ? `<button class="btn-sm btn-copy-reply" onclick="xCopyCand('${esc(k.id)}','reply',this)">追いリプ</button>` : ''}
             ${thread.length ? `<button class="btn-sm btn-copy-reply" onclick="xCopyCand('${esc(k.id)}','thread',this)">スレッド</button>` : ''}
             ${!posted ? `<button class="btn-sm" style="background:var(--success);color:#fff;" onclick="xMark('${esc(k.id)}','posted')">✅ 投稿した</button>
-            <button class="btn-sm" style="background:#eee;color:#666;" onclick="xMark('${esc(k.id)}','killed')">却下</button>` : ''}
+            <button class="btn-sm" style="background:#eee;color:#666;" onclick="xMark('${esc(k.id)}','killed')">却下</button>`
+            : `<button class="btn-sm ${xRecorded(k) ? '' : 'btn-copy-main'}" style="${xRecorded(k) ? 'background:var(--primary-light);color:var(--primary);' : ''}" onclick="xOpenResult('${esc(k.id)}')">${xRecorded(k) ? '📊 記録済み（直す）' : '📊 結果を記録'}</button>`}
           </div>
+          ${xResultForm(k)}
         </div>`;
       }).join('');
 
@@ -3362,6 +3426,7 @@ function renderXTab() {
       <button class="btn-sm" style="background:var(--bg);color:var(--muted);" onclick="refreshX()">🔄</button>
     </div>
     ${briefHtml}
+    ${manualHtml}
     ${today ? `<div class="daily-insight" style="margin:0 0 12px;"><strong>👥 フォロワー ${xFmt(today.followers)}</strong>${delta7 != null ? `（7日 ${delta7 >= 0 ? '+' : ''}${xFmt(delta7)}）` : ''}<br><span style="font-size:11px">${esc(spark)}</span></div>` : ''}
     ${healthHtml}
 
