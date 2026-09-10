@@ -5,7 +5,8 @@ const SYNC_KEY = 'ci-threads-sync-v1'; // 簡易ボット避け（クライア�
 
 export async function onRequestGet(context) {
   const { results } = await context.env.DB.prepare(
-    `SELECT id, batch_id, pattern, theme, tag, body, cta, posted_at, result, updated_at
+    `SELECT id, batch_id, pattern, theme, tag, body, cta, posted_at, result, updated_at,
+            replies, reposts, posted_hour, has_image
      FROM threads_results ORDER BY posted_at DESC LIMIT 1000`
   ).all();
   return Response.json({ ok: true, count: results.length, posts: results });
@@ -27,12 +28,17 @@ export async function onRequestPost(context) {
 
   const now = Date.now();
   const stmt = env.DB.prepare(
-    `INSERT INTO threads_results (id, batch_id, pattern, theme, tag, body, cta, posted_at, result, updated_at)
-     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)
+    `INSERT INTO threads_results (id, batch_id, pattern, theme, tag, body, cta, posted_at, result, updated_at,
+                                  replies, reposts, posted_hour, has_image)
+     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)
      ON CONFLICT(id) DO UPDATE SET
        result = excluded.result,
        posted_at = excluded.posted_at,
-       updated_at = excluded.updated_at`
+       updated_at = excluded.updated_at,
+       replies = COALESCE(excluded.replies, threads_results.replies),
+       reposts = COALESCE(excluded.reposts, threads_results.reposts),
+       posted_hour = COALESCE(excluded.posted_hour, threads_results.posted_hour),
+       has_image = COALESCE(excluded.has_image, threads_results.has_image)`
   );
   const batch = posts
     .filter(p => p && typeof p.id === 'string' && p.id.length > 0 && p.id.length < 64)
@@ -43,7 +49,11 @@ export async function onRequestPost(context) {
       p.cta ? 1 : 0,
       num(p.postedAt),
       resultVal(p.result),
-      now
+      now,
+      num(p.replies),
+      num(p.reposts),
+      num(p.postedHour),
+      p.hasImage === true ? 1 : (p.hasImage === false ? 0 : null)
     ));
   if (batch.length > 0) await env.DB.batch(batch);
   return Response.json({ ok: true, saved: batch.length });
