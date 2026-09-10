@@ -40,6 +40,8 @@
     .header-sub { font-size: 11px; color: var(--muted); margin-top: 1px; }
     .header-week { font-size: 11px; color: var(--accent); font-weight: 600;
       background: #fff3e0; padding: 3px 9px; border-radius: 12px; }
+    .brand-select { background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+      font-size: 12px; padding: 4px 8px; color: var(--text); font-family: inherit; }
 
     /* Content */
     .content { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; }
@@ -356,6 +358,7 @@
       <div class="header-sub">クリスタルインセンス 投稿ストック</div>
     </div>
     <div style="display:flex;align-items:center;gap:8px;">
+      <select id="brand-select" class="brand-select" onchange="switchBrand(this.value)"></select>
       <div class="header-week" id="header-week"></div>
       <button onclick="hardReload()" style="background:var(--primary-light);border:none;color:var(--primary);font-size:18px;width:34px;height:34px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;" title="最新版に更新">🔄</button>
     </div>
@@ -516,7 +519,7 @@
       <div class="tab-icon">🔍</div>
       <span>研究</span>
     </button>
-    <button class="tab-btn" onclick="switchTab('x',this)">
+    <button class="tab-btn" id="tab-btn-x" onclick="switchTab('x',this)">
       <div class="tab-icon"><span class="x-logo">X</span><span class="badge" id="b-x" style="display:none"></span></div>
       <span>X運用</span>
     </button>
@@ -525,6 +528,21 @@
 <div class="toast" id="toast"></div>
 
 <script>
+// ============================================================
+// 【ブランド設定】複数ブランド切替対応
+// ブランドを増やす時はこの配列に追記するだけでよい（UI・キー分離は自動追従）
+// ============================================================
+const BRANDS = [
+  { id: 'ci',             name: 'クリスタルインセンス', short: 'CI',    emoji: '🕯️' },
+  { id: 'startup-kyushu', name: 'スタートアップ九州',   short: '九州',  emoji: '🚀' },
+  { id: 'karen',          name: '橋本華恋',            short: 'カレン', emoji: '🌿' },
+];
+let currentBrand = localStorage.getItem('ci_brand') || 'ci';
+function brandInfo() { return BRANDS.find(b => b.id === currentBrand) || BRANDS[0]; }
+// ブランド別localStorageキー生成：CIは従来のキーをそのまま使う（後方互換・既存CIユーザーのデータは無影響）。
+// CI以外は接尾辞を付けて完全に分離する。
+function k(base) { return currentBrand === 'ci' ? base : base + '_' + currentBrand; }
+
 // ============================================================
 // 【週次投稿バッチ】← Claudeが毎週ここを更新します
 // batchId: "YYYY-WNN" 形式 (重複チェックに使用)
@@ -667,19 +685,20 @@ function loadState(key, fallback) {
   try { return JSON.parse(localStorage.getItem(key) || fallback); }
   catch { localStorage.removeItem(key); return JSON.parse(fallback); }
 }
-let reviewQueue   = loadState('ci_review',  '[]');
-let stockList     = loadState('ci_stock',   '[]');
-let historyList   = loadState('ci_history', '[]');
-let loadedBatches = loadState('ci_batches', '[]');
+let reviewQueue   = loadState(k('ci_review'),  '[]');
+let stockList     = loadState(k('ci_stock'),   '[]');
+let historyList   = loadState(k('ci_history'), '[]');
+let loadedBatches = loadState(k('ci_batches'), '[]');
 let currentTab    = 'review';
 
 // ---- 今日の推奨投稿 ----
 const DAILY_URL = '/api/daily';
-let dailyRec = loadState('ci_daily', 'null'); // サーバー同期済みキャッシュ（{ date, mode, pattern, theme, body, reply, tag, confidence, rationale, insight_summary, candidates } | null）
+let dailyRec = loadState(k('ci_daily'), 'null'); // サーバー同期済みキャッシュ（{ date, mode, pattern, theme, body, reply, tag, confidence, rationale, insight_summary, candidates } | null）
 let dailyCands = []; // renderDailyRec() が候補モードで描画した際の並び替え済み配列（コピー用にindexで参照）
 
 // ---- Startup: check for new batches ----
 function checkNewBatches() {
+  if (currentBrand !== 'ci') return; // WEEKLY_BATCHESはCI専用データのため他ブランドでは何もしない
   const newBatches = WEEKLY_BATCHES.filter(b => !loadedBatches.includes(b.batchId));
   if (newBatches.length === 0) return;
 
@@ -710,7 +729,7 @@ function loadNewBatches() {
     });
     loadedBatches.push(b.batchId);
   });
-  localStorage.setItem('ci_batches', JSON.stringify(loadedBatches));
+  localStorage.setItem(k('ci_batches'), JSON.stringify(loadedBatches));
   save();
   document.getElementById('batch-banner-area').innerHTML = '';
   renderReview();
@@ -740,7 +759,9 @@ function updateBadges() {
 
   // Header week
   const latestBatch = WEEKLY_BATCHES[0];
-  if (latestBatch) {
+  if (currentBrand !== 'ci') {
+    document.getElementById('header-week').textContent = ''; // WEEKLY_BATCHESはCI専用
+  } else if (latestBatch) {
     document.getElementById('header-week').textContent = latestBatch.batchId;
     document.getElementById('last-batch-date').textContent = latestBatch.generatedAt;
   }
@@ -752,14 +773,78 @@ function setBadge(id, n) {
   else el.style.display = 'none';
 }
 
+// ---- ブランド切替 ----
+// ヘッダのセレクト（BRANDSから動的生成）とサブタイトルを、選択中ブランドに合わせて描画する
+function renderBrandHeader() {
+  const sel = document.getElementById('brand-select');
+  if (sel) {
+    if (!sel.dataset.built) {
+      sel.innerHTML = BRANDS.map(b => `<option value="${b.id}">${b.emoji} ${esc(b.name)}</option>`).join('');
+      sel.dataset.built = '1';
+    }
+    sel.value = currentBrand;
+  }
+  const sub = document.querySelector('.header-sub');
+  if (sub) sub.textContent = `${brandInfo().name} 投稿ストック`;
+  // X運用タブは @crystalinsence 専用。他ブランドでは隠し、開いていればレビューへ戻す
+  const xBtn = document.getElementById('tab-btn-x');
+  if (xBtn) {
+    xBtn.hidden = currentBrand !== 'ci';
+    if (xBtn.hidden && typeof currentTab !== 'undefined' && currentTab === 'x') {
+      switchTab('review', document.querySelector('.tab-btn'));
+    }
+  }
+}
+
+function switchBrand(id) {
+  if (!BRANDS.find(b => b.id === id) || id === currentBrand) return;
+  currentBrand = id;
+  localStorage.setItem('ci_brand', id);
+
+  // ブランド別のローカル状態を読み直す（CIは従来キー、それ以外は接尾辞キー）
+  reviewQueue   = loadState(k('ci_review'),  '[]');
+  stockList     = loadState(k('ci_stock'),   '[]');
+  historyList   = loadState(k('ci_history'), '[]');
+  loadedBatches = loadState(k('ci_batches'), '[]');
+  dailyRec      = loadState(k('ci_daily'),   'null');
+  ownStats      = loadState(k('ci_own_stats'), 'null');
+  buzzLibrary   = loadState(k('ci_buzz_lib'),     '[]');
+  buzzPending   = loadState(k('ci_buzz_pending'), '[]');
+
+  renderBrandHeader();
+
+  // WEEKLY_BATCHESのバナーはCI専用データに依存するため、切替時は一旦クリアしCIの時だけ再判定する
+  document.getElementById('batch-banner-area').innerHTML = '';
+  if (currentBrand === 'ci') checkNewBatches();
+
+  // 全ビューを再描画
+  renderReview();
+  renderStock();
+  renderHistory();
+  renderDailyRec();
+  renderGenerateStats();
+  updateBadges();
+  renderBuzzList();
+  renderBuzzDashboard();
+  renderAccountHealth();
+  renderBuzzDashboardOwn();
+
+  // サーバーから最新を取得し直す
+  fetchDailyRec();
+  fetchOwnResults();
+  fetchBuzzLibrary();
+
+  showToast(`${brandInfo().name} に切り替えました`);
+}
+
 // ---- 今日の推奨投稿：取得・描画・コピー ----
 async function fetchDailyRec() {
   try {
-    const res = await fetch(DAILY_URL);
+    const res = await fetch(DAILY_URL + '?brand=' + currentBrand);
     if (!res.ok) return;
     const data = await res.json();
     dailyRec = data.rec || null;
-    localStorage.setItem('ci_daily', JSON.stringify(dailyRec));
+    localStorage.setItem(k('ci_daily'), JSON.stringify(dailyRec));
     renderDailyRec();
   } catch { /* オフライン等。キャッシュ表示を維持 */ }
 }
@@ -905,9 +990,15 @@ function renderReview() {
   const sh = document.getElementById('review-section-header');
   if (reviewQueue.length === 0) {
     sh.textContent = '';
-    el.innerHTML = `<div class="empty">
+    // WEEKLY_BATCHES（ローカル定義の投稿案）はCI専用のため、CI以外は空状態の文言を変える
+    el.innerHTML = currentBrand === 'ci'
+      ? `<div class="empty">
       <div class="empty-icon">📭</div>
       <p>レビュー待ちの投稿はありません<br>上のバナーから今週のバッチを読み込んでください</p>
+    </div>`
+      : `<div class="empty">
+      <div class="empty-icon">📭</div>
+      <p>まだ投稿案がありません<br>エンジンが生成するとここに出ます</p>
     </div>`;
     return;
   }
@@ -1079,7 +1170,8 @@ async function syncResults() {
     body: p.body || null,
     cta: !!p.cta,
     postedAt: p.postedAt || null,
-    result: p.result || null
+    result: p.result || null,
+    brand: currentBrand
   }));
   try {
     const res = await fetch(SYNC_URL, {
@@ -1122,9 +1214,9 @@ function flashCopy(id, type) {
 
 // ---- Utils ----
 function save() {
-  localStorage.setItem('ci_review',  JSON.stringify(reviewQueue));
-  localStorage.setItem('ci_stock',   JSON.stringify(stockList));
-  localStorage.setItem('ci_history', JSON.stringify(historyList));
+  localStorage.setItem(k('ci_review'),  JSON.stringify(reviewQueue));
+  localStorage.setItem(k('ci_stock'),   JSON.stringify(stockList));
+  localStorage.setItem(k('ci_history'), JSON.stringify(historyList));
   updateBadges();
 }
 
@@ -1169,18 +1261,18 @@ function hardReload() {
 // ============================================================
 const BUZZ_URL = '/api/buzz';
 const BUZZ_TAGS = ['国産', '国産を守ろう', '国産を選ぼう', '国産メーカー品', 'その他'];
-let buzzLibrary = loadState('ci_buzz_lib',     '[]'); // ライブラリ本体（サーバー同期済み＋未同期含む）
-let buzzPending = loadState('ci_buzz_pending', '[]'); // 未同期のid一覧
+let buzzLibrary = loadState(k('ci_buzz_lib'),     '[]'); // ライブラリ本体（サーバー同期済み＋未同期含む）
+let buzzPending = loadState(k('ci_buzz_pending'), '[]'); // 未同期のid一覧
 let buzzTagFilter = 'all';
 let buzzExpanded = {}; // id -> 展開表示中か
 
 // ---- アカウント健康度／自社傾向（/api/results の実測データ。org-ci-* のみ実投稿）----
 const RESULTS_URL = SYNC_URL; // 同じ /api/results を使う
-let ownStats = loadState('ci_own_stats', 'null'); // サーバー同期済みキャッシュ（配列 | null）
+let ownStats = loadState(k('ci_own_stats'), 'null'); // サーバー同期済みキャッシュ（配列 | null）
 
 function saveBuzzLocal() {
-  localStorage.setItem('ci_buzz_lib',     JSON.stringify(buzzLibrary));
-  localStorage.setItem('ci_buzz_pending', JSON.stringify(buzzPending));
+  localStorage.setItem(k('ci_buzz_lib'),     JSON.stringify(buzzLibrary));
+  localStorage.setItem(k('ci_buzz_pending'), JSON.stringify(buzzPending));
 }
 
 // ---- id生成（URLがあれば正規化ハッシュ、なければ本文先頭50字のハッシュ）----
@@ -1247,7 +1339,8 @@ function clearBuzzForm() {
 // ---- 未同期キューの再送 ----
 async function syncBuzzPending() {
   if (buzzPending.length === 0) return true;
-  const posts = buzzPending.map(id => buzzLibrary.find(p => p.id === id)).filter(Boolean);
+  const posts = buzzPending.map(id => buzzLibrary.find(p => p.id === id)).filter(Boolean)
+    .map(p => ({ ...p, brand: currentBrand }));
   if (posts.length === 0) { buzzPending = []; saveBuzzLocal(); return true; }
   try {
     const res = await fetch(BUZZ_URL, {
@@ -1267,7 +1360,7 @@ async function syncBuzzPending() {
 // ---- サーバーから取得してローカルキャッシュとマージ（id重複はサーバー優先）----
 async function fetchBuzzLibrary() {
   try {
-    const res = await fetch(BUZZ_URL);
+    const res = await fetch(BUZZ_URL + '?brand=' + currentBrand);
     if (!res.ok) return;
     const data = await res.json();
     const serverPosts = Array.isArray(data.posts) ? data.posts : [];
@@ -1290,7 +1383,7 @@ async function fetchBuzzLibrary() {
 // それ以外（2026-W31-039 等）はアプリ上で「投稿済み」にした下書きのマーカーであり実測ではないため除外する。
 async function fetchOwnResults() {
   try {
-    const res = await fetch(RESULTS_URL);
+    const res = await fetch(RESULTS_URL + '?brand=' + currentBrand);
     if (!res.ok) return;
     const data = await res.json();
     const posts = Array.isArray(data.posts) ? data.posts : [];
@@ -1311,7 +1404,7 @@ async function fetchOwnResults() {
           theme
         };
       });
-    localStorage.setItem('ci_own_stats', JSON.stringify(ownStats));
+    localStorage.setItem(k('ci_own_stats'), JSON.stringify(ownStats));
     renderAccountHealth();
     renderBuzzDashboardOwn();
   } catch { /* オフライン等。キャッシュ表示を維持 */ }
@@ -1590,6 +1683,7 @@ function renderBuzzDashboardOwn() {
 // ストック・実績・研究ライブラリには一切触れない（既に選別・投稿済みの資産は保持）。
 (function cleanupReviewOnce() {
   const KEY = 'ci_review_cleanup_20260722';
+  if (currentBrand !== 'ci') return;                    // CI専用データの移行処理のため他ブランドでは何もしない
   if (localStorage.getItem(KEY)) return;               // 一度実行したら二度と走らない
   const keep = WEEKLY_BATCHES.find(b => b.batchId === '2026-W30-buzz');
   if (!keep) return;                                   // まだ配信前なら何もしない
@@ -1609,6 +1703,7 @@ function renderBuzzDashboardOwn() {
 (function addBuzz2Once() {
   const KEY = 'ci_addbuzz2_20260722';
   if (localStorage.getItem(KEY)) return;
+  if (currentBrand !== 'ci') return; // CI専用データの移行処理のため他ブランドでは何もしない
   const b = WEEKLY_BATCHES.find(x => x.batchId === '2026-W30-buzz2');
   if (!b) return;
   const stockIds = new Set(stockList.map(p => p.id));
@@ -1628,6 +1723,7 @@ function renderBuzzDashboardOwn() {
 (function rescoreReviewOnce() {
   const KEY = 'ci_rescore_20260724';
   if (localStorage.getItem(KEY)) return;
+  if (currentBrand !== 'ci') return; // CI専用データの移行処理のため他ブランドでは何もしない
   const map = {
     '2026-W30-buzz-001':62,'2026-W30-buzz-002':90,'2026-W30-buzz-003':78,'2026-W30-buzz-004':80,
     '2026-W30-buzz-005':60,'2026-W30-buzz-006':78,'2026-W30-buzz-007':64,'2026-W30-buzz-008':76,
@@ -1938,6 +2034,7 @@ function renderXTab() {
 (function addCiRecoveryOnce() {
   const KEY = 'ci_recovery_20260910';
   if (localStorage.getItem(KEY)) return;
+  if (currentBrand !== 'ci') return; // CI専用データの移行処理のため他ブランドでは何もしない
   const b = WEEKLY_BATCHES.find(x => x.batchId === '2026-W37-ci-recovery');
   if (!b) return;
   const stockIds = new Set(stockList.map(p => p.id));
@@ -1957,6 +2054,7 @@ function renderXTab() {
 (function resetToV2Once() {
   const KEY = 'ci_v2_reset_20260910';
   if (localStorage.getItem(KEY)) return;
+  if (currentBrand !== 'ci') return; // CI専用データの移行処理のため他ブランドでは何もしない
   const b = WEEKLY_BATCHES.find(x => x.batchId === '2026-W37-ci-v2');
   if (!b) return;
   const stockIds = new Set(stockList.map(p => p.id));
@@ -1974,6 +2072,7 @@ function renderXTab() {
 (function resetToShortOnce() {
   const KEY = 'ci_short_reset_20260910';
   if (localStorage.getItem(KEY)) return;
+  if (currentBrand !== 'ci') return; // CI専用データの移行処理のため他ブランドでは何もしない
   const b = WEEKLY_BATCHES.find(x => x.batchId === '2026-W37-short');
   if (!b) return;
   const stockIds = new Set(stockList.map(p => p.id));
@@ -1987,6 +2086,7 @@ function renderXTab() {
 })();
 
 // ---- Init ----
+renderBrandHeader();
 checkNewBatches();
 renderReview();
 renderDailyRec();
