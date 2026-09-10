@@ -21,7 +21,9 @@ export async function runMetrics(env) {
   }
 
   // ① オリジナル投稿は必ず全件取る（学習が成績を確定する7日目まで窓から落ちてはいけない）
-  const originals = await getUserTweets(env, selfId, { maxResults: 100, sinceDays: 14, excludeReplies: true });
+  // 学習が成績を確定するのは投稿から7日目。8日ぶん取れば足りる（14日ぶん取るのは無駄な課金）
+  const originalDays = parseInt(env.ORIGINAL_DAYS || '8', 10);
+  const originals = await getUserTweets(env, selfId, { maxResults: 100, sinceDays: originalDays, excludeReplies: true });
   // ② 返信は直近ぶんをサンプルとして取る（種類別の効率比較に使うだけなので全件でなくてよい）
   const replyBudget = parseInt(env.REPLY_SAMPLE || '60', 10);
   const withReplies = replyBudget > 0

@@ -20,7 +20,8 @@ DRY_RUN = "0"
 RADAR_TOP_N = "10"
 RADAR_POSTS_PER = "5"
 MAX_READS_PER_DAY = "400"
-REPLY_SAMPLE = "60"        # 返信の計測サンプル数/日。0にすれば返信を測らず費用を下げられる
+REPLY_SAMPLE = "30"        # 返信の計測サンプル数/日。0にすれば返信を測らず費用を下げられる
+ORIGINAL_DAYS = "8"       # オリジナル投稿を何日ぶん取るか（確定は7日目）
 SELF_HANDLE = "crystalinsence"
 
 # secrets（値はコード管理しない。本人が wrangler secret put で投入）:
