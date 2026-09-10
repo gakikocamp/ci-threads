@@ -8,13 +8,14 @@ export async function onRequestGet(context) {
   const { request, env } = context;
   const url = new URL(request.url);
   const date = url.searchParams.get('date');
+  const brand = url.searchParams.get('brand') || 'ci'; // 未指定は従来どおりCI
 
-  const base = `SELECT id, date, mode, pattern, theme, body, reply, tag, confidence, rationale, insight_summary, candidates, created_at, updated_at
+  const base = `SELECT id, brand, date, mode, pattern, theme, body, reply, tag, confidence, rationale, insight_summary, candidates, created_at, updated_at
      FROM daily_recommendation`;
 
   const stmt = date
-    ? env.DB.prepare(`${base} WHERE date = ?1 LIMIT 1`).bind(date)
-    : env.DB.prepare(`${base} ORDER BY date DESC LIMIT 1`);
+    ? env.DB.prepare(`${base} WHERE brand = ?1 AND date = ?2 LIMIT 1`).bind(brand, date)
+    : env.DB.prepare(`${base} WHERE brand = ?1 ORDER BY date DESC LIMIT 1`).bind(brand);
 
   const { results } = await stmt.all();
   return Response.json({ ok: true, rec: results[0] || null });
@@ -35,7 +36,8 @@ export async function onRequestPost(context) {
   if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
     return Response.json({ ok: false, error: 'invalid date' }, { status: 400 });
   }
-  const id = date; // idは日付そのもの
+  const brand = str(payload.brand, 40) || 'ci';
+  const id = brand === 'ci' ? date : `${brand}:${date}`; // ブランド毎に一意（CIは従来のid=日付を維持）
   const now = Date.now();
 
   // candidates: 配列 or JSON文字列のどちらでも受理。妥当なものだけ最大5件・サニタイズしてJSON文字列で保存
@@ -47,9 +49,10 @@ export async function onRequestPost(context) {
   const candidatesJson = candidates ? JSON.stringify(candidates) : null;
 
   await env.DB.prepare(
-    `INSERT INTO daily_recommendation (id, date, mode, pattern, theme, body, reply, tag, confidence, rationale, insight_summary, candidates, created_at, updated_at)
-     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)
+    `INSERT INTO daily_recommendation (id, brand, date, mode, pattern, theme, body, reply, tag, confidence, rationale, insight_summary, candidates, created_at, updated_at)
+     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)
      ON CONFLICT(id) DO UPDATE SET
+       brand = excluded.brand,
        date = excluded.date,
        mode = excluded.mode,
        pattern = excluded.pattern,
@@ -64,6 +67,7 @@ export async function onRequestPost(context) {
        updated_at = excluded.updated_at`
   ).bind(
     id,
+    brand,
     date,
     str(payload.mode),
     str(payload.pattern),

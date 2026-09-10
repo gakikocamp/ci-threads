@@ -7,13 +7,14 @@ export async function onRequestGet(context) {
   const { request, env } = context;
   const url = new URL(request.url);
   const tag = url.searchParams.get('tag');
+  const brand = url.searchParams.get('brand') || 'ci';
 
-  const base = `SELECT id, url, author, tag, body, likes, replies, reposts, hook_type, pattern, why_buzz, source, collected_at, updated_at
+  const base = `SELECT id, url, author, tag, body, likes, replies, reposts, hook_type, pattern, why_buzz, source, collected_at, updated_at, brand
      FROM buzz_library`;
 
   const stmt = tag
-    ? env.DB.prepare(`${base} WHERE tag = ?1 ORDER BY likes DESC LIMIT 500`).bind(tag)
-    : env.DB.prepare(`${base} ORDER BY likes DESC LIMIT 500`);
+    ? env.DB.prepare(`${base} WHERE brand = ?1 AND tag = ?2 ORDER BY likes DESC LIMIT 500`).bind(brand, tag)
+    : env.DB.prepare(`${base} WHERE brand = ?1 ORDER BY likes DESC LIMIT 500`).bind(brand);
 
   const { results } = await stmt.all();
   return Response.json({ ok: true, count: results.length, posts: results });
@@ -35,8 +36,8 @@ export async function onRequestPost(context) {
 
   const now = Date.now();
   const stmt = env.DB.prepare(
-    `INSERT INTO buzz_library (id, url, author, tag, body, likes, replies, reposts, hook_type, pattern, why_buzz, source, collected_at, updated_at)
-     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)
+    `INSERT INTO buzz_library (id, url, author, tag, body, likes, replies, reposts, hook_type, pattern, why_buzz, source, collected_at, updated_at, brand)
+     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)
      ON CONFLICT(id) DO UPDATE SET
        likes = excluded.likes,
        replies = excluded.replies,
@@ -45,7 +46,8 @@ export async function onRequestPost(context) {
        pattern = excluded.pattern,
        why_buzz = excluded.why_buzz,
        tag = excluded.tag,
-       updated_at = excluded.updated_at`
+       updated_at = excluded.updated_at,
+       brand = excluded.brand`
   );
   const batch = posts
     .filter(p => p && typeof p.id === 'string' && p.id.length > 0 && p.id.length <= 128)
@@ -63,7 +65,8 @@ export async function onRequestPost(context) {
       str(p.whyBuzz, 500),
       str(p.source),
       num(p.collectedAt) ?? now,
-      now
+      now,
+      str(p.brand, 40) || 'ci'
     ));
   if (batch.length > 0) await env.DB.batch(batch);
   return Response.json({ ok: true, saved: batch.length });
