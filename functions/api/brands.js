@@ -106,6 +106,42 @@ const BRANDS = [
       '肩書きを並べて自慢に見える書き方',
       '共同代表の実名を本文に出さない（追いリプで「うちの会社の香司」までは可）'
     ]
+  },
+  {
+    id: 'vantrip',
+    name: 'VAN TRIP JAPAN',
+    engine: 'manual', // Threadsハンドル確認後に 'multibrand' へ切り替える
+    accounts: [],
+    goal: '海外からのキャンピングカー予約（と免許翻訳JDLTC）を増やす',
+    kpi: '❤とリプ（質問）。国別・言語別に反応を記録し、言語の配分を決める',
+    audience: '日本旅行を計画中の海外旅行者。予約実績(2026-07〜08・15件): カナダ3、シンガポール3、イスラエル2、ポーランド2、スイス・ドイツ・フランス・オーストラリア・マレーシア各1。申込言語は英語12・独1・仏1・ヘブライ1',
+    languages: { en: '主軸', fr: 'フランス向け（免許の警告など）', de: 'ドイツ・スイス向け（免許の警告など）', he: '保留（予約1件・ガイド登録0件。母語話者の確認なしに出さない）' },
+    persona: '親しみのある語り口。1行目は国名＋国旗で直接呼びかける。仏語は vous、独語は ihr',
+    signature: 'VAN TRIP JAPAN | Fukuoka 🚐',
+    equation_override: '英語・仏語・独語は4〜6行・本文240文字以内。依頼は「❤️だけ」。詳細とURLは追いリプ。候補には日本語訳を rationale に付ける',
+    facts: [
+      'VAN TRIP JAPAN: 福岡拠点のキャンピングカーレンタル。受け渡しは福岡空港近く（airport pickup coordination）',
+      'Toyota Probox Camper 1–2 people / Mazda Bongo Camper 2–4 people',
+      'Included: full bedding set, cooking equipment, portable power station, pocket WiFi router (unlimited data), comprehensive vehicle insurance, 24/7 roadside assistance (English/Japanese)',
+      'Price: Probox ¥8,000–12,000/day, Bongo ¥12,000–18,000/day (by season). Minimum rental 2 nights',
+      'Kyushu: hot springs (Beppu, Yufuin, Kurokawa, Ureshino), Takachiho Gorge, Aso. Far fewer tourists than Tokyo, Osaka or Kyoto. Michi-no-Eki roadside stations',
+      'Booking: https://vantripjapan.jp/rent',
+      'Japan drives on the left (same as Singapore, Malaysia, Australia)',
+      'Japan only accepts IDPs issued under the 1949 Geneva Convention',
+      'Germany and Switzerland: 1968 Vienna Convention. Their IDP is NOT valid in Japan',
+      'France and Belgium: now issue IDPs under the 1968 Vienna format. Their IDP is NOT valid in Japan',
+      'They need: national licence + official JAF Japanese translation + passport. Without valid documents, rental companies legally cannot hand over the keys',
+      'Driving with an invalid permit counts as unlicensed driving in Japan',
+      'USA, UK, Australia and other 1949 Geneva countries can use a standard IDP',
+      'JDLTC (operated by VAN TRIP JAPAN): online application in 5 minutes, from €99 (Express €139, Rush €179), Rush PDF in 1–3 business days. Switzerland from CHF 99. JAF applications can only be made from within Japan. https://drive-japan-license.com/fr/ https://drive-japan-license.com/de/',
+      'Israel: only the physical paper IDP booklet (1949 Geneva) is valid. Issued at MEMSI branches or authorized optics shops for 15–20 NIS. Digital or online permits (e.g. IAA) are not valid. Carry Israeli license + IDP booklet + passport. Guide: https://drive-japan-license.com/guide/israel-license-japan-idp-guide'
+    ],
+    ng: [
+      '国ごとの免許の可否は facts にある国だけ書く（カナダ・シンガポール・マレーシア・ポーランドは未確認なので書かない）',
+      '割引率（％オフ）を出さない',
+      '「世界最大」「日本一」など最上級の観光表現',
+      'ヘブライ語の本文は母語話者の確認なしに出さない'
+    ]
   }
 ];
 
