@@ -113,15 +113,16 @@ const BRANDS = [
   {
     id: 'vantrip',
     name: 'VAN TRIP JAPAN',
-    engine: 'manual', // Threadsハンドル確認後に 'multibrand' へ切り替える
-    accounts: [],
+    engine: 'multibrand',
+    accounts: [{ handle: 'vantripjapan', main: true, thresholds: { buzz: 10, ok: 3 } }],
     goal: '福岡に旅行に来たい海外の人に、VANの長期レンタルで九州を旅してもらう（予約を増やす）',
     kpi: '❤とリプ（質問）。国別・言語別・2行目の角度別に反応を記録し、配分を決める',
     audience: '福岡・九州への旅行を考えている海外の人。予約実績(2026-07〜08・15件): カナダ3、シンガポール3、イスラエル2、ポーランド2、スイス・ドイツ・フランス・オーストラリア・マレーシア各1。申込言語は英語12・独1・仏1・ヘブライ1',
     languages: { en: '主軸', fr: 'フランス向け', de: 'ドイツ・スイス向け', he: '保留（予約1件・ガイド登録0件。母語話者の確認なしに出さない）' },
     persona: '家族経営の親しみ。1行目は国名＋国旗で「福岡に来る？」と直接呼びかける（挙手型）。2行目で「街だけで終わらせず、VANで1〜2週間九州を回る」絵を見せる。仏語は vous、独語は ihr',
-    signature: 'VAN TRIP JAPAN | Fukuoka 🚐',
-    equation_override: '英語・仏語・独語は4〜6行・本文240文字以内。依頼は「❤️だけ」。料金・受け渡し・URLは追いリプ。候補には日本語訳を rationale に付ける',
+    signature: '',
+    baseline: '実測開始時点(2026-09-12): フォロワー0人。直近3投稿は反応表示なし。まず国名・言語・旅の日数・2行目の角度ごとに小さな反応差を記録する',
+    equation_override: '英語・仏語・独語は4〜6行・本文240文字以内。依頼は「❤️だけ」。ブランド名の署名は付けない。料金・受け渡し・URLは追いリプ。候補には日本語訳を rationale に付ける',
     facts: [
       '出典: vantripjapan.jp の実表示（2026-09-11確認）。VanTripJapan/llms-full.txt の料金・定員は古いので使わない',
       'Family-run (Karen & her husband) in Fukuoka since 2022. Hand-built campervans',

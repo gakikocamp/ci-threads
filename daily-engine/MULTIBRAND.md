@@ -1,6 +1,6 @@
 # マルチブランド・デイリーエンジン（Mac Studio 追加手順・2026-09-10）
 
-CI（@crystal_insence / @gakikocamp）の既存フローはそのまま。**スタートアップ九州（@startupkyushu）と橋本華恋（@konnichiwa.karen）を、毎朝同じループで回す**ための追加手順。
+CI（@crystal_insence / @gakikocamp）の既存フローはそのまま。**スタートアップ九州（@startupkyushu）・橋本華恋（@konnichiwa.karen）・VAN TRIP JAPAN（@vantripjapan）を、毎朝同じループで回す**ための追加手順。
 
 - ブランド別の目標・閾値・事実表・NG・生成の型は **`GET https://ci-threads.pages.dev/api/brands`**（`x-sync-key: ci-threads-sync-v1`）に集約
 - 中身は `threads-app/functions/api/brands.js`。**MacBook側で直して push すれば、翌朝からエンジンの判定と生成が変わる**（Mac Studio の再改修は不要）
@@ -40,7 +40,7 @@ CI（@crystal_insence / @gakikocamp）の既存フローはそのまま。**ス�
    (c) 判定: 投稿から24時間以上たった自社投稿を thresholds（insight_summary に新しい閾値があればそちら）で buzz/ok/miss に判定。24時間未満は送らない。pattern は「1行目の型（読者向けか自分向けか）×長さ×依頼の有無」で分類。POST /api/results に {posts:[{id:"org-<id>-<postId>", brand:"<id>", batchId:"organic-<handle>", pattern, theme:"[@<handle> ❤N view:na] 要約", tag, body, cta, postedAt(ms), postedHour, hasImage, result, replies, reposts}]}。
    (d) 研究: 研究タグの上位から、このブランドに応用できる投稿を1〜2件 POST /api/buzz（brand:"<id>"）。政治・排外・誹謗は除外。
    (e) 校正: 今日が月曜なら recalibrate に従って閾値を再計算し、insight_summary に書く。
-   (f) 生成: 今日の日付で phases（until）から mode を決め、goal/kpi/audience/persona/themes を踏まえて equation を厳守した候補を5本。本文は4〜6行・55〜90字（改行を除く）、1行目は読者が頷ける価値観の断言、依頼は「いいねだけ」程度、最終行は signature。さらに本文内に、他人へ伝えたくなる確認済みの燃料（知られていない事実・具体的数字・失われる危機・意外な対比）を最低1つ入れる。価値観といいね依頼だけで終わらせない。日時・料金・URLは reply へ。facts にない数字・実績・体験談は書かない。common_ng と ng を1本ずつ全チェック。確度(0-100)は実測パターン率に加え、いいね率＝共感、再投稿・引用・シェア率＝配信拡大として別々に評価する。燃料がない候補は79以下、同型で高い再投稿率を再現していない候補は90以上にしない。これは確率ではなく候補間の相対スコア。直近7日の /api/daily の候補と同じ1行目の型は避ける。
+   (f) 生成: 今日の日付で phases（until）から mode を決め、goal/kpi/audience/persona/themes を踏まえて equation を厳守した候補を5本。本文は原則4〜6行・55〜90字（改行を除く）、1行目は読者が頷ける価値観の断言、依頼は「いいねだけ」程度。signature が空なら署名は付けない。さらに本文内に、他人へ伝えたくなる確認済みの燃料（知られていない事実・具体的数字・失われる危機・意外な対比）を最低1つ入れる。価値観といいね依頼だけで終わらせない。ブランドに equation_override がある場合は字数・言語・署名をそちらで上書きする。日時・料金・URLは reply へ。facts にない数字・実績・体験談は書かない。common_ng と ng を1本ずつ全チェック。確度(0-100)は実測パターン率に加え、いいね率＝共感、再投稿・引用・シェア率＝配信拡大として別々に評価する。燃料がない候補は79以下、同型で高い再投稿率を再現していない候補は90以上にしない。これは確率ではなく候補間の相対スコア。直近7日の /api/daily の候補と同じ1行目の型は避ける。
    (g) 反映: POST /api/daily に {brand:"<id>", date:今日(YYYY-MM-DD), mode, pattern/theme/body/reply/tag/confidence/rationale は候補#1, candidates:[5本], insight_summary:"勝ち型・負け型・いいね率・再投稿率・フォロワー数と前日差・現在の閾値"}。
    ---
 
