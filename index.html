@@ -6,6 +6,10 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="CI Posts">
+  <meta name="theme-color" content="#f36a22">
+  <link rel="icon" type="image/png" sizes="32x32" href="/assets/ci-threads-icon-32.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/assets/ci-threads-icon-180.png">
+  <link rel="manifest" href="/manifest.webmanifest">
   <title>CI Threads</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
@@ -36,6 +40,9 @@
       border-bottom: 1px solid var(--border);
       display: flex; align-items: center; justify-content: space-between;
     }
+    .header-brand { display: flex; align-items: center; gap: 9px; min-width: 0; }
+    .header-app-icon { width: 36px; height: 36px; border-radius: 11px; flex: 0 0 auto;
+      box-shadow: 0 3px 10px rgba(91,35,118,.22); }
     .header-title { font-size: 17px; font-weight: 700; color: var(--primary); letter-spacing: -0.3px; }
     .header-sub { font-size: 11px; color: var(--muted); margin-top: 1px; }
     .header-week { font-size: 11px; color: var(--accent); font-weight: 600;
@@ -353,9 +360,12 @@
 <body>
 <div id="app">
   <div class="header">
-    <div>
-      <div class="header-title">CI Threads</div>
-      <div class="header-sub">クリスタルインセンス 投稿ストック</div>
+    <div class="header-brand">
+      <img class="header-app-icon" src="/assets/ci-threads-icon-180.png" alt="">
+      <div>
+        <div class="header-title">CI Threads</div>
+        <div class="header-sub">クリスタルインセンス 投稿ストック</div>
+      </div>
     </div>
     <div style="display:flex;align-items:center;gap:8px;">
       <select id="brand-select" class="brand-select" onchange="switchBrand(this.value)"></select>
