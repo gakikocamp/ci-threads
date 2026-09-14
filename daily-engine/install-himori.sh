@@ -6,12 +6,18 @@ LABEL="com.crystalinsence.himori"
 ENGINE_DIR="${0:A:h}"
 RUNNER="$ENGINE_DIR/run-x.sh"
 TOKEN_FILE="$HOME/.config/himori/tokens.env"
-PLIST="$HOME/Library/LaunchAgents/$LABEL.plist"
+PLIST_DIR="$HOME/Library/LaunchAgents"
+PLIST="$PLIST_DIR/$LABEL.plist"
 LOG_DIR="$ENGINE_DIR/logs"
 
 [[ -x "$RUNNER" ]] || chmod +x "$RUNNER"
 [[ -f "$TOKEN_FILE" ]] || { echo "❌ $TOKEN_FILE がありません"; exit 78; }
-mkdir -p "${PLIST:h}" "$LOG_DIR"
+grep -Eq '^X_WRITER_KEY=[A-Za-z0-9_-]{24,}$' "$TOKEN_FILE" || {
+  echo "❌ $TOKEN_FILE のX_WRITER_KEY形式が正しくありません"
+  echo "   X_WRITER_KEY=... の1行にしてください（名前にバックスラッシュを入れない）"
+  exit 78
+}
+mkdir -p "$PLIST_DIR" "$LOG_DIR"
 
 export HIMORI_LABEL="$LABEL" HIMORI_RUNNER="$RUNNER" HIMORI_PLIST="$PLIST" HIMORI_LOG_DIR="$LOG_DIR"
 /usr/bin/python3 <<'PY'
