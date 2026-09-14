@@ -19,24 +19,41 @@ grep -Eq '^X_WRITER_KEY=[A-Za-z0-9_-]{24,}$' "$TOKEN_FILE" || {
 }
 mkdir -p "$PLIST_DIR" "$LOG_DIR"
 
-export HIMORI_LABEL="$LABEL" HIMORI_RUNNER="$RUNNER" HIMORI_PLIST="$PLIST" HIMORI_LOG_DIR="$LOG_DIR"
-/usr/bin/python3 <<'PY'
-import os, plistlib
-home = os.path.expanduser('~')
-data = {
-    'Label': os.environ['HIMORI_LABEL'],
-    'ProgramArguments': ['/bin/zsh', os.environ['HIMORI_RUNNER']],
-    'StartCalendarInterval': {'Hour': 6, 'Minute': 30},
-    'RunAtLoad': False,
-    'StandardOutPath': os.path.join(os.environ['HIMORI_LOG_DIR'], 'himori.out.log'),
-    'StandardErrorPath': os.path.join(os.environ['HIMORI_LOG_DIR'], 'himori.err.log'),
-    'EnvironmentVariables': {
-        'PATH': f'/opt/homebrew/bin:{home}/.local/bin:/usr/local/bin:/usr/bin:/bin'
-    },
-}
-with open(os.environ['HIMORI_PLIST'], 'wb') as f:
-    plistlib.dump(data, f, sort_keys=False)
-PY
+cat > "$PLIST" <<PLIST_XML
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>$LABEL</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/zsh</string>
+    <string>$RUNNER</string>
+  </array>
+  <key>StartCalendarInterval</key>
+  <dict>
+    <key>Hour</key>
+    <integer>6</integer>
+    <key>Minute</key>
+    <integer>30</integer>
+  </dict>
+  <key>RunAtLoad</key>
+  <false/>
+  <key>StandardOutPath</key>
+  <string>$LOG_DIR/himori.out.log</string>
+  <key>StandardErrorPath</key>
+  <string>$LOG_DIR/himori.err.log</string>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>/opt/homebrew/bin:$HOME/.local/bin:/usr/local/bin:/usr/bin:/bin</string>
+  </dict>
+</dict>
+</plist>
+PLIST_XML
+
+plutil -lint "$PLIST" >/dev/null
 
 DOMAIN="gui/$(id -u)"
 launchctl bootout "$DOMAIN/$LABEL" 2>/dev/null || true
