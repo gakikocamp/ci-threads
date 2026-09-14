@@ -2,6 +2,7 @@
 # =============================================================
 # クリスタルインセンス デイリーバズ・エンジン
 # launchd (com.crystalinsence.dailybuzz) から毎朝6:54に起動される
+# Threads候補の更新後、同じ安定したジョブ内で灯守のX候補も更新する
 # 本体: iCloud/開発用/SecondGaki/クリスタルインセンス/threads-app/daily-engine/
 # ログ: 同ディレクトリ logs/run-YYYY-MM-DD.log
 # =============================================================
@@ -40,7 +41,28 @@ fi
 PROMPT="${BASE_PROMPT}${SAFETY_NOTE}"
 
 claude -p --dangerously-skip-permissions "$PROMPT" >> "$LOG_FILE" 2>&1
-EXIT_CODE=$?
+THREADS_EXIT_CODE=$?
 
-echo "===== daily buzz engine end (exit=$EXIT_CODE): $(date '+%Y-%m-%d %H:%M:%S') =====" >> "$LOG_FILE"
-exit $EXIT_CODE
+echo "===== Threads engine end (exit=$THREADS_EXIT_CODE): $(date '+%Y-%m-%d %H:%M:%S') =====" >> "$LOG_FILE"
+
+# Mac Studioでは新しいLaunchAgentの作成が制限される場合があるため、
+# 既に稼働実績のあるdailybuzzジョブからX候補生成を直列実行する。
+X_EXIT_CODE=0
+X_RUNNER="$ENGINE_DIR/run-x.sh"
+if [[ -x "$X_RUNNER" ]]; then
+  echo "===== X candidate engine start: $(date '+%Y-%m-%d %H:%M:%S') =====" >> "$LOG_FILE"
+  "$X_RUNNER"
+  X_EXIT_CODE=$?
+  echo "===== X candidate engine end (exit=$X_EXIT_CODE): $(date '+%Y-%m-%d %H:%M:%S') =====" >> "$LOG_FILE"
+else
+  X_EXIT_CODE=78
+  echo "===== X candidate engine missing: $X_RUNNER =====" >> "$LOG_FILE"
+fi
+
+FINAL_EXIT_CODE=$THREADS_EXIT_CODE
+if [[ "$FINAL_EXIT_CODE" == "0" && "$X_EXIT_CODE" != "0" ]]; then
+  FINAL_EXIT_CODE=$X_EXIT_CODE
+fi
+
+echo "===== daily buzz engine end (exit=$FINAL_EXIT_CODE): $(date '+%Y-%m-%d %H:%M:%S') =====" >> "$LOG_FILE"
+exit $FINAL_EXIT_CODE
