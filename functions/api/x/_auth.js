@@ -4,7 +4,8 @@
 // どちらも Pages の環境変数（Secret）。未設定なら該当操作は全て拒否＝安全側。
 export function isWriter(request, env) {
   const k = request.headers.get('x-writer-key');
-  return Boolean(env.X_WRITER_KEY) && k === env.X_WRITER_KEY;
+  // MacBookとMac Studioで鍵を分離する。片方の交換で、もう片方の生成処理を止めない。
+  return Boolean(k) && [env.X_WRITER_KEY, env.X_WRITER_KEY_STUDIO].filter(Boolean).includes(k);
 }
 export function isAdmin(request, env) {
   const k = request.headers.get('x-admin-token');

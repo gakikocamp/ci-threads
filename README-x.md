@@ -38,7 +38,8 @@ cd threads-app && npx wrangler d1 execute ci_zukou --remote --file=schema-x.sql
 npx wrangler d1 execute ci_zukou --remote --file=ci-x-cron/seed-watchlist.sql
 
 # 2) Pages の環境変数（Cloudflare ダッシュボード → ci-threads → Settings → Variables and Secrets）
-#    X_WRITER_KEY  = 長いランダム文字列（Mac Studio の生成エンジンが使う）
+#    X_WRITER_KEY         = 長いランダム文字列（既存の生成エンジン用）
+#    X_WRITER_KEY_STUDIO  = 長いランダム文字列（Mac Studio専用。既存キーを失効させず追加できる）
 #    X_ADMIN_TOKEN = 別の長いランダム文字列（アプリの🔑に入れる）
 #    例: openssl rand -hex 24
 
