@@ -5,49 +5,51 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="apple-mobile-web-app-title" content="CI Posts">
-  <meta name="theme-color" content="#f36a22">
-  <link rel="icon" type="image/png" sizes="32x32" href="/assets/ci-threads-icon-32.png">
-  <link rel="apple-touch-icon" sizes="180x180" href="/assets/ci-threads-icon-180.png">
+  <meta name="apple-mobile-web-app-title" content="POST GROOVE">
+  <meta name="theme-color" content="#e9a7b4">
+  <link rel="icon" type="image/png" sizes="32x32" href="/assets/post-groove-cat-icon-32.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/assets/post-groove-cat-icon-180.png">
   <link rel="manifest" href="/manifest.webmanifest">
-  <title>CI Threads</title>
+  <title>POST GROOVE</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
     :root {
-      --primary: #6b8e7f;
-      --primary-light: #e8f0ec;
-      --accent: #c4956a;
-      --bg: #f5f4f0;
-      --surface: #ffffff;
-      --text: #1a1a1a;
-      --muted: #6b6b6b;
-      --border: #e5e5e5;
-      --success: #4caf50;
+      --primary: #76577f;
+      --primary-light: #f2e8f4;
+      --accent: #c96f7f;
+      --bg: #fbf5ee;
+      --surface: #fffdfb;
+      --text: #332c35;
+      --muted: #766c78;
+      --border: #eadfe8;
+      --success: #5b9a8e;
       --danger: #ef5350;
       --warn: #ff9800;
-      --shadow: 0 2px 16px rgba(0,0,0,0.07);
+      --shadow: 0 6px 22px rgba(106,76,116,0.09);
     }
-    html, body { height: 100%; background: var(--bg); color: var(--text);
+    html, body { height: 100%; color: var(--text);
+      background: radial-gradient(circle at 12% 5%, rgba(243,199,211,.42), transparent 30%),
+        radial-gradient(circle at 88% 10%, rgba(185,220,221,.38), transparent 28%), var(--bg);
       font-family: -apple-system, BlinkMacSystemFont, 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', sans-serif;
       overflow: hidden; }
-    #app { display: flex; flex-direction: column; height: 100dvh; max-width: 480px; margin: 0 auto; }
+    #app { display: flex; flex-direction: column; height: 100dvh; max-width: 480px; margin: 0 auto;
+      background: rgba(251,245,238,.76); box-shadow: 0 0 40px rgba(106,76,116,.08); }
 
     /* Header */
     .header {
       padding: 14px 20px 12px;
       padding-top: calc(14px + env(safe-area-inset-top));
-      background: var(--surface);
+      background: linear-gradient(115deg, rgba(255,247,220,.96), rgba(249,224,232,.94) 52%, rgba(222,239,238,.96));
       border-bottom: 1px solid var(--border);
       display: flex; align-items: center; justify-content: space-between;
     }
     .header-brand { display: flex; align-items: center; gap: 9px; min-width: 0; }
     .header-app-icon { width: 36px; height: 36px; border-radius: 11px; flex: 0 0 auto;
       box-shadow: 0 3px 10px rgba(91,35,118,.22); }
-    .header-title { font-size: 17px; font-weight: 700; color: var(--primary); letter-spacing: -0.3px; }
-    .header-sub { font-size: 11px; color: var(--muted); margin-top: 1px; }
-    .header-week { font-size: 11px; color: var(--accent); font-weight: 600;
-      background: #fff3e0; padding: 3px 9px; border-radius: 12px; }
-    .brand-select { background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+    .header-title { font-size: 15px; font-weight: 800; color: var(--primary); letter-spacing: 0.3px; white-space: nowrap; }
+    .header-sub { font-size: 9.5px; color: var(--muted); margin-top: 1px; white-space: nowrap; }
+    .header-week { display: none; }
+    .brand-select { background: rgba(255,255,255,.72); border: 1px solid rgba(118,87,127,.2); border-radius: 10px;
       font-size: 12px; padding: 4px 8px; color: var(--text); font-family: inherit; }
 
     /* Content */
@@ -57,7 +59,7 @@
 
     /* Tab bar */
     .tab-bar {
-      display: flex; background: var(--surface);
+      display: flex; background: linear-gradient(90deg, #fff8e8, #f9e9ef 48%, #eaf5f4);
       border-top: 1px solid var(--border);
       padding-bottom: env(safe-area-inset-bottom);
       flex-shrink: 0;   /* 画面下端に必ず残す（コンテンツが長くても押し出されない） */
@@ -95,7 +97,7 @@
 
     /* New batch banner */
     .batch-banner {
-      background: linear-gradient(135deg, var(--primary), #4a7a6b);
+      background: linear-gradient(135deg, #80618a, #c97891 55%, #8ebfc1);
       color: white; border-radius: 14px; padding: 16px 18px;
       margin-bottom: 14px; display: flex; align-items: center; gap: 12px;
     }
@@ -361,10 +363,10 @@
 <div id="app">
   <div class="header">
     <div class="header-brand">
-      <img class="header-app-icon" src="/assets/ci-threads-icon-180.png" alt="">
+      <img class="header-app-icon" src="/assets/post-groove-cat-icon-180.png" alt="POST GROOVEの猫マスコット">
       <div>
-        <div class="header-title">CI Threads</div>
-        <div class="header-sub">クリスタルインセンス 投稿ストック</div>
+        <div class="header-title">POST GROOVE</div>
+        <div class="header-sub">毎日育つ投稿エンジン</div>
       </div>
     </div>
     <div style="display:flex;align-items:center;gap:8px;">
@@ -796,7 +798,7 @@ function renderBrandHeader() {
     sel.value = currentBrand;
   }
   const sub = document.querySelector('.header-sub');
-  if (sub) sub.textContent = `${brandInfo().name} 投稿ストック`;
+  if (sub) sub.textContent = '毎日育つ投稿エンジン';
   // X運用タブは @crystalinsence 専用。他ブランドでは隠し、開いていればレビューへ戻す
   const xBtn = document.getElementById('tab-btn-x');
   if (xBtn) {
