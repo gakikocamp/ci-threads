@@ -33,15 +33,15 @@ BASE="${HIMORI_BASE:-https://ci-threads.pages.dev}"
 log() { echo "[$(date '+%H:%M:%S')] $*" >> "$LOG_FILE" }
 
 choose_claude() {
-  local c status
+  local c auth_status
   local -a choices
   choices=()
   [[ -n "${CLAUDE_BIN:-}" ]] && choices+=("$CLAUDE_BIN")
   choices+=("/opt/homebrew/bin/claude" "$HOME/.local/bin/claude" "/usr/local/bin/claude")
   for c in "${choices[@]}"; do
     [[ -x "$c" ]] || continue
-    status=$("$c" auth status 2>/dev/null || true)
-    if printf '%s' "$status" | grep -Eq '"loggedIn"[[:space:]]*:[[:space:]]*true'; then
+    auth_status=$("$c" auth status 2>/dev/null || true)
+    if printf '%s' "$auth_status" | grep -Eq '"loggedIn"[[:space:]]*:[[:space:]]*true'; then
       printf '%s' "$c"
       return 0
     fi
