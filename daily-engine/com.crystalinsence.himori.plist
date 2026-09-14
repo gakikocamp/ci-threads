@@ -7,7 +7,8 @@
 	<key>ProgramArguments</key>
 	<array>
 		<string>/bin/zsh</string>
-		<string>/Users/gakipro/Library/Mobile Documents/com~apple~CloudDocs/開発用/SecondGaki/クリスタルインセンス/threads-app/daily-engine/run-x.sh</string>
+		<string>-lc</string>
+		<string>exec "$HOME/Library/Mobile Documents/com~apple~CloudDocs/開発用/SecondGaki/クリスタルインセンス/threads-app/daily-engine/run-x.sh"</string>
 	</array>
 	<key>StartCalendarInterval</key>
 	<dict>
@@ -19,13 +20,13 @@
 	<key>RunAtLoad</key>
 	<false/>
 	<key>StandardOutPath</key>
-	<string>/Users/gakipro/Library/Mobile Documents/com~apple~CloudDocs/開発用/SecondGaki/クリスタルインセンス/threads-app/daily-engine/logs/himori.out.log</string>
+	<string>/tmp/com.crystalinsence.himori.out.log</string>
 	<key>StandardErrorPath</key>
-	<string>/Users/gakipro/Library/Mobile Documents/com~apple~CloudDocs/開発用/SecondGaki/クリスタルインセンス/threads-app/daily-engine/logs/himori.err.log</string>
+	<string>/tmp/com.crystalinsence.himori.err.log</string>
 	<key>EnvironmentVariables</key>
 	<dict>
 		<key>PATH</key>
-		<string>/Users/gakipro/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
+		<string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
 	</dict>
 </dict>
 </plist>

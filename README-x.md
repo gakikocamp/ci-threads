@@ -19,6 +19,16 @@
 3. リプが来たら香司の声で返信。クラスターの仲間の投稿にも1日5分、手で返信
 4. 監視したいアカウントは「👁 監視に追加」（政治色・排外は入れない）
 
+## Mac Studioへの朝エンジン登録
+
+Claude CLIへ一度ログインしたあと、iCloud上のリポジトリで次を実行する。ユーザー名と実在パスは自動判定される。
+
+```bash
+./daily-engine/install-himori.sh --run-now
+```
+
+候補が届かない場合は `daily-engine/logs/x-YYYY-MM-DD.log` を確認する。`NOT AUTHENTICATED` またはOAuth期限切れなら、Mac Studioのターミナルで `claude` を起動して `/login` を実行し、上のコマンドをもう一度実行する。
+
 初回だけ: 🔑ボタンで管理トークンを入力（下記の X_ADMIN_TOKEN と同じ値）。
 
 ## 本番に載せる手順（すべてCEO承認のうえで実行）

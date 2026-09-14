@@ -18,8 +18,9 @@ mkdir -p "$LOG_DIR"
 TODAY=$(date +%Y-%m-%d)
 LOG_FILE="$LOG_DIR/x-$TODAY.log"
 
-# launchd 経由でも claude / node が見えるように PATH を保証
-export PATH="$HOME/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:$PATH"
+# launchd 経由でも claude / node が見えるように PATH を保証。
+# Claude CLI が複数あるMacでは、PATH先頭の古い未認証版を掴まないよう後段でログイン状態を検査する。
+export PATH="/opt/homebrew/bin:$HOME/.local/bin:/usr/local/bin:/usr/bin:/bin:$PATH"
 
 # 秘密は ~/.config/himori/tokens.env（本人が作成。リポジトリには置かない）
 TOKENS="$HOME/.config/himori/tokens.env"
@@ -31,8 +32,27 @@ BASE="${HIMORI_BASE:-https://ci-threads.pages.dev}"
 
 log() { echo "[$(date '+%H:%M:%S')] $*" >> "$LOG_FILE" }
 
+choose_claude() {
+  local c status
+  local -a choices
+  choices=()
+  [[ -n "${CLAUDE_BIN:-}" ]] && choices+=("$CLAUDE_BIN")
+  choices+=("/opt/homebrew/bin/claude" "$HOME/.local/bin/claude" "/usr/local/bin/claude")
+  for c in "${choices[@]}"; do
+    [[ -x "$c" ]] || continue
+    status=$("$c" auth status 2>/dev/null || true)
+    if printf '%s' "$status" | grep -Eq '"loggedIn"[[:space:]]*:[[:space:]]*true'; then
+      printf '%s' "$c"
+      return 0
+    fi
+  done
+  return 1
+}
+
+CLAUDE_BIN=$(choose_claude || true)
+
 log "===== 灯守 朝エンジン開始 ====="
-log "claude: $(command -v claude || echo 'NOT FOUND')"
+log "claude: ${CLAUDE_BIN:-NOT AUTHENTICATED}"
 
 # ── 事前チェック1: トークン ──
 if [[ -z "${X_WRITER_KEY:-}" ]]; then
@@ -40,9 +60,9 @@ if [[ -z "${X_WRITER_KEY:-}" ]]; then
   exit 78
 fi
 
-# ── 事前チェック2: Claude Code の認証（切れていると無言で失敗するので先に見る）──
-if ! command -v claude >/dev/null 2>&1; then
-  log "FATAL: claude コマンドが見つからない"
+# ── 事前チェック2: Claude Code の認証（複数インストールを含めて検査）──
+if [[ -z "$CLAUDE_BIN" ]]; then
+  log "FATAL: ログイン済みのClaude CLIが見つからない。Mac Studioのターミナルで 'claude' を起動し、/login 後に再実行してください"
   exit 78
 fi
 
@@ -67,7 +87,7 @@ $APP_DIR/x/routine-prompt.md の手順を実行してください。
 EOF
 )"
 
-claude -p --dangerously-skip-permissions "$PROMPT" >> "$LOG_FILE" 2>&1
+"$CLAUDE_BIN" -p --dangerously-skip-permissions "$PROMPT" >> "$LOG_FILE" 2>&1
 EXIT_CODE=$?
 
 # ── 事後チェック: 候補が入ったか ──
