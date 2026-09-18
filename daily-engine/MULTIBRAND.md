@@ -54,3 +54,21 @@ CI（@crystal_insence / @gakikocamp）の既存フローはそのまま。**ス�
 
 ## 変更の戻し方
 `cp run-daily.sh.bak-20260910 run-daily.sh && cp collector.js.bak-20260910 collector.js`
+
+---
+
+## 収集が全件0になったときの直し方（2026-09-18 追記）
+
+9/18の実行で、4ブランドすべて「likes/replies/reposts が全件0」で返った。未ログインのせいではない（公開プロフィールでも数値は表示される。同日に実機確認済み）。**collector.js の取得部分が壊れている**とみて直す。
+
+Mac Studio の Claude に貼るプロンプト:
+
+```
+~/ci-daily-engine/collector.js が、Threadsの投稿の いいね・返信・再投稿 を全件0で返すようになっています。原因を特定して直してください。
+
+1. 事実確認: 未ログインの公開プロフィール（https://www.threads.com/@konnichiwa.karen など）でも数値は表示される。2026-09-18に @crystal_insence / @gakikocamp / @konnichiwa.karen / @startupkyushu で確認済み（例: 固定投稿が 307 / 22 / 16）。「未ログインだから0」という結論は誤り。
+2. 調査: collector.js が数値を拾っているセレクタを確認し、実際のDOMと突き合わせる（描画待ちが足りない可能性も見る）。
+3. 代替手段の実装: 投稿カードの innerText を行に分割し、「行全体が数字だけ」の行を上から likes / replies / reposts として拾うフォールバックを入れる。セレクタが壊れてもこれで拾える。
+4. 安全弁: 収集した自社投稿の likes が全件0なら「収集失敗」と判定し、その日は /api/results に1件も送らない。insight_summary の先頭に「収集失敗」と原因を書く。ただし followers が0のアカウント（vantripjapan）は表示にも数字が無ければ本当に0なので記録してよい。詳細は GET /api/brands の collection フィールドにある。
+5. 検証: node collector.js を単体で実行し、@konnichiwa.karen の固定投稿が 307 / 22 / 16 で取れることを確認してから報告してください。
+```

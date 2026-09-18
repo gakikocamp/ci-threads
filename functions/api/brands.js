@@ -2,7 +2,7 @@
 // ここを直して push すれば、翌朝からエンジンの判定・生成ルールが変わる（Mac Studio 側の改修は不要）
 // ?id=karen のように1ブランドだけ取得も可
 const SYNC_KEY = 'ci-threads-sync-v1'; // 簡易ボット避け（クライアントに埋め込むため秘密ではない）
-const UPDATED = '2026-09-12';
+const UPDATED = '2026-09-18';
 
 // 全ブランド共通：CIの条件統制つき実験（2026-09-10 ❤4,124 vs ❤111/❤244）で確定した型
 const EQUATION = {
@@ -28,6 +28,19 @@ const COMMON_NG = [
 
 // 閾値は初期値。毎週月曜に各アカウントの直近20件（確定分）の❤中央値で上方修正する
 const RECALIBRATE = 'weekly(月): buzz=max(初期buzz, 中央値×5) / ok=max(初期ok, 中央値×1.5)。24時間未満はpending';
+
+// 収集の健全性ルール（2026-09-18 追加。全件0で返る収集不具合を検知して学習データの汚染を防ぐ）
+const COLLECTION = {
+  fact: '未ログインの公開プロフィールでも ❤・返信・再投稿は表示される（2026-09-18 に @crystal_insence / @gakikocamp / @konnichiwa.karen / @startupkyushu で実機確認）。したがって「未ログインだから数値が0」は誤り',
+  detect: '収集した自社投稿の likes が全件0、または followers が取得できないのに過去に実測があるアカウントは「収集失敗」と判定する',
+  on_failure: [
+    '/api/results には1件も送らない（0を miss として記録すると実測が汚染される）',
+    'insight_summary の先頭に「収集失敗」と明記し、原因（セレクタ・描画待ち・ログイン）を1行で書く',
+    '翌日の実行で取りこぼし分を再取得する（24時間を過ぎていても未登録なら判定してよい）'
+  ],
+  fallback: '投稿カードの innerText を行に分割し、「行全体が数字だけ」の行を上から likes / replies / reposts として拾う。2026-09-18 に4アカウントで有効性を確認済み（例: 307 / 22 / 16）。セレクタが壊れてもこの方法で拾えるなら収集を続行する',
+  exception: 'followers が 0 のアカウント（例: vantripjapan）は、表示にも数字が無ければ本当に0。この場合だけ0として記録してよい'
+};
 
 const BRANDS = [
   {
@@ -115,7 +128,9 @@ const BRANDS = [
     name: 'VAN TRIP JAPAN',
     engine: 'multibrand',
     accounts: [{ handle: 'vantripjapan', main: true, thresholds: { buzz: 10, ok: 3 } }],
-    goal: '福岡に旅行に来たい海外の人に、VANの長期レンタルで九州を旅してもらう（予約を増やす）',
+    goal: '福岡に旅行に来たい海外の人に、VANの長期レンタルで九州を旅してもらう（予約を増やす）。ただし2026-09-18時点でフォロワー0人のため、当面の最優先はフォロワーと露出の獲得',
+    judgment_hold: 'フォロワーが50人未満の間は、❤0を文面の失敗として判定しない（配信そのものが起きていないため）。results には記録するが、insight_summary では「リーチ不足」と明記し、勝ち型・負け型の結論を出さない',
+    growth_first: ['CI・橋本華恋・VAN TRIP JAPANのInstagramから導線を作る', '日本旅行の話題に返信して露出を作る', '固定投稿を1本用意する'],
     kpi: '❤とリプ（質問）。国別・言語別・2行目の角度別に反応を記録し、配分を決める',
     audience: '福岡・九州への旅行を考えている海外の人。予約実績(2026-07〜08・15件): カナダ3、シンガポール3、イスラエル2、ポーランド2、スイス・ドイツ・フランス・オーストラリア・マレーシア各1。申込言語は英語12・独1・仏1・ヘブライ1',
     languages: { en: '主軸', fr: 'フランス向け', de: 'ドイツ・スイス向け', he: '保留（予約1件・ガイド登録0件。母語話者の確認なしに出さない）' },
@@ -155,5 +170,5 @@ export async function onRequestGet({ request }) {
   }
   const id = new URL(request.url).searchParams.get('id');
   const brands = id ? BRANDS.filter(b => b.id === id) : BRANDS;
-  return Response.json({ ok: true, updated: UPDATED, equation: EQUATION, common_ng: COMMON_NG, recalibrate: RECALIBRATE, brands });
+  return Response.json({ ok: true, updated: UPDATED, equation: EQUATION, common_ng: COMMON_NG, recalibrate: RECALIBRATE, collection: COLLECTION, brands });
 }
