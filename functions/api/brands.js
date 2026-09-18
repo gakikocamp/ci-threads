@@ -29,6 +29,16 @@ const COMMON_NG = [
 // 閾値は初期値。毎週月曜に各アカウントの直近20件（確定分）の❤中央値で上方修正する
 const RECALIBRATE = 'weekly(月): buzz=max(初期buzz, 中央値×5) / ok=max(初期ok, 中央値×1.5)。24時間未満はpending';
 
+// 成功の定義（2026-09-18 柴垣さん指摘で変更。❤だけで勝ち型を決めない）
+const SUCCESS = {
+  primary: '投稿後24時間の「フォロワー増」。次に、売上・申込・問い合わせにつながる行動（プロフィール経由の購入、DM、申込）',
+  secondary: '❤・再投稿・返信は「どれだけ配信されたか」を見る副指標。目的ではない',
+  cap_rule: '❤が buzz 閾値を超えても、その24時間のフォロワー増が0なら result は ok 止まりにする。theme に「(フォロワー+0)」と明記する',
+  off_topic: '本業（お香・キャンピングカー・イベント集客・起業相談）と関係ないテーマは、❤が伸びても勝ち型として学習しない。insight_summary に「学習対象外（テーマ不一致）」と理由を書く',
+  evidence: '2026-09-18 @gakikocamp「なぜ日本はこんなに貧乏な国になってしまったのだろうか。」が❤1,886・返信282・再投稿55まで伸びたが、フォロワー増なし・売上なし（柴垣さん確認）。バズ＝成功ではない',
+  tracking: '毎日すべてのアカウント（@crystal_insence / @gakikocamp を含む）のフォロワー数を記録し、前日差を insight_summary に必ず残す。投稿があった日は、その差を当日の投稿に紐づけて評価する'
+};
+
 // 収集の健全性ルール（2026-09-18 追加。全件0で返る収集不具合を検知して学習データの汚染を防ぐ）
 const COLLECTION = {
   fact: '未ログインの公開プロフィールでも ❤・返信・再投稿は表示される（2026-09-18 に @crystal_insence / @gakikocamp / @konnichiwa.karen / @startupkyushu で実機確認）。したがって「未ログインだから数値が0」は誤り',
@@ -46,7 +56,9 @@ const BRANDS = [
   {
     id: 'ci',
     name: 'クリスタルインセンス',
-    engine: 'legacy', // 既存の run-daily.sh の手順で処理中。新ループでは扱わない
+    engine: 'legacy',
+    goal: '@crystal_insence のバズから売上をつくる（売上が立つのはCIアカウントのバズのみ）',
+    kpi: 'フォロワー増と売上が主指標。❤は副指標。お香・国産のものづくりから外れたテーマは、❤が伸びても学習しない', // 既存の run-daily.sh の手順で処理中。新ループでは扱わない
     accounts: [
       { handle: 'crystal_insence', main: true,  thresholds: { buzz: 3000, ok: 800 } },
       { handle: 'gakikocamp',      main: false, thresholds: { buzz: 300,  ok: 80 } }
@@ -170,5 +182,5 @@ export async function onRequestGet({ request }) {
   }
   const id = new URL(request.url).searchParams.get('id');
   const brands = id ? BRANDS.filter(b => b.id === id) : BRANDS;
-  return Response.json({ ok: true, updated: UPDATED, equation: EQUATION, common_ng: COMMON_NG, recalibrate: RECALIBRATE, collection: COLLECTION, brands });
+  return Response.json({ ok: true, updated: UPDATED, equation: EQUATION, success: SUCCESS, common_ng: COMMON_NG, recalibrate: RECALIBRATE, collection: COLLECTION, brands });
 }
