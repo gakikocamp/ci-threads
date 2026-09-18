@@ -72,3 +72,21 @@ Mac Studio の Claude に貼るプロンプト:
 4. 安全弁: 収集した自社投稿の likes が全件0なら「収集失敗」と判定し、その日は /api/results に1件も送らない。insight_summary の先頭に「収集失敗」と原因を書く。ただし followers が0のアカウント（vantripjapan）は表示にも数字が無ければ本当に0なので記録してよい。詳細は GET /api/brands の collection フィールドにある。
 5. 検証: node collector.js を単体で実行し、@konnichiwa.karen の固定投稿が 307 / 22 / 16 で取れることを確認してから報告してください。
 ```
+
+## フォロワー数の記録（2026-09-18 追加・成功判定の主指標）
+
+❤ではなく**フォロワー増**で勝ち型を決める（2026-09-18 柴垣さん指摘。@gakikocamp の❤1,886はフォロワー増も売上もゼロだった）。
+
+毎朝の各ブランドの処理に、次を追加する。
+
+```
+収集したプロフィールのフォロワー数を、毎日 POST https://ci-threads.pages.dev/api/followers に記録する。
+本文: {"counts":[{"brand":"<id>","handle":"<handle>","date":"YYYY-MM-DD","followers":1588}]}（deltaはサーバー側で自動計算）
+ヘッダー: x-sync-key: ci-threads-sync-v1
+判定では GET /api/followers?handle=<handle>&days=30 を読み、投稿後24時間のフォロワー増を主指標にする。
+❤が buzz 閾値を超えても、その間のフォロワー増が0なら buzz にせず ok 止まりにし、theme に「(フォロワー+0)」と書く。
+本業と関係ないテーマは、❤が伸びても勝ち型として学習しない（insight_summary に「学習対象外（テーマ不一致）」と理由を書く）。
+未ログインの公開プロフィールは1万人以上が丸められるため、@crystal_insence は必ずログイン状態のインサイトから正確な数を取る。取れない日は followers を送らない。
+```
+
+CIの既存フロー（run-daily.sh の legacy 部分）にも、この記録と判定を同じように入れること。

@@ -36,7 +36,8 @@ const SUCCESS = {
   cap_rule: '❤が buzz 閾値を超えても、その24時間のフォロワー増が0なら result は ok 止まりにする。theme に「(フォロワー+0)」と明記する',
   off_topic: '本業（お香・キャンピングカー・イベント集客・起業相談）と関係ないテーマは、❤が伸びても勝ち型として学習しない。insight_summary に「学習対象外（テーマ不一致）」と理由を書く',
   evidence: '2026-09-18 @gakikocamp「なぜ日本はこんなに貧乏な国になってしまったのだろうか。」が❤1,886・返信282・再投稿55まで伸びたが、フォロワー増なし・売上なし（柴垣さん確認）。バズ＝成功ではない',
-  tracking: '毎日すべてのアカウント（@crystal_insence / @gakikocamp を含む）のフォロワー数を記録し、前日差を insight_summary に必ず残す。投稿があった日は、その差を当日の投稿に紐づけて評価する'
+  tracking: '毎日すべてのアカウント（@crystal_insence / @gakikocamp を含む）のフォロワー数を取得し、POST /api/followers に {brand, handle, date, followers} を送って記録する（deltaは自動計算）。前日差は insight_summary にも残す。投稿があった日は、その日のdeltaを当日の投稿に紐づけて評価する',
+  tracking_note: '未ログインの公開プロフィールは1万人以上が「5万人」のように丸められる。@crystal_insence の正確なフォロワー数と増減は、ログイン状態のインサイトから取ること。取れない日は followers を送らず、insight_summary に「フォロワー未取得」と書く'
 };
 
 // 収集の健全性ルール（2026-09-18 追加。全件0で返る収集不具合を検知して学習データの汚染を防ぐ）
