@@ -885,6 +885,13 @@ function renderDailyRec() {
       <div class="daily-card">
         <div class="daily-insight" style="margin-top:0;"><strong>📊 前日の成績</strong><br>${esc(r.insight_summary)}</div>
       </div>` : '';
+    // 収集が失敗した日は、学習が止まっていることを先頭で知らせる（候補は過去の実測だけで作られている）
+    const collectFailed = /収集失敗|自己修理失敗/.test(r.insight_summary || '');
+    const alertHtml = collectFailed ? `
+      <div class="daily-card" style="border:1px solid #d9534f;background:#fdf1f0;color:#8a1f1b;">
+        <strong>⚠️ データ収集に失敗しています</strong><br>
+        この日の成績は学習に入っていません。今日の候補は過去の実測だけで作られています。Mac Studio の収集プログラムの確認が必要です。
+      </div>` : '';
     const cardsHtml = sorted.map((c, i) => `
       <div class="daily-card">
         <div class="daily-head">
@@ -909,6 +916,7 @@ function renderDailyRec() {
         ${r.date ? `<span class="daily-date">${esc(r.date)}</span>` : ''}
       </div>
       <div style="font-size:11px;color:var(--muted);margin-bottom:10px;">バズ確度順・最大5本</div>
+      ${alertHtml}
       ${insightHtml}
       ${cardsHtml}`;
     return;

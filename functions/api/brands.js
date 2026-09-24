@@ -2,7 +2,7 @@
 // ここを直して push すれば、翌朝からエンジンの判定・生成ルールが変わる（Mac Studio 側の改修は不要）
 // ?id=karen のように1ブランドだけ取得も可
 const SYNC_KEY = 'ci-threads-sync-v1'; // 簡易ボット避け（クライアントに埋め込むため秘密ではない）
-const UPDATED = '2026-09-18';
+const UPDATED = '2026-09-24';
 
 // 全ブランド共通：CIの条件統制つき実験（2026-09-10 ❤4,124 vs ❤111/❤244）で確定した型
 const EQUATION = {
@@ -40,6 +40,42 @@ const SUCCESS = {
   tracking_note: '未ログインの公開プロフィールは1万人以上が「5万人」のように丸められる。@crystal_insence の正確なフォロワー数と増減は、ログイン状態のインサイトから取ること。取れない日は followers を送らず、insight_summary に「フォロワー未取得」と書く'
 };
 
+// 実機で検証済みの取得関数（2026-09-24 MacBook のブラウザで13投稿を実測。例: DdaYLIrkusP 13/1/1、DdmAlF9kxw_ 350/2/5）
+// 個別投稿ページ https://www.threads.com/@<handle>/post/<id> を開いた状態で page.evaluate(fn, id) として使う
+async function threadsPostMetrics(id) {
+  function cardOf(pid) {
+    const a = [...document.querySelectorAll('a[href*="/post/' + pid + '"]')][0];
+    if (!a) return null;
+    let c = a;
+    while (c.parentElement) {
+      const p = c.parentElement;
+      const ids = new Set([...p.querySelectorAll('a[href*="/post/"]')]
+        .map(x => (x.getAttribute('href').match(/\/post\/([A-Za-z0-9_-]+)/) || [])[1]).filter(Boolean));
+      if (ids.size > 1) break;
+      c = p;
+    }
+    return c;
+  }
+  let card = null;
+  for (let i = 0; i < 20 && !(card = cardOf(id)); i++) await new Promise(r => setTimeout(r, 250));
+  if (!card) return { id, error: 'card not found' };
+  const svgs = [...card.querySelectorAll('svg')];
+  const last = svgs.slice(-4);
+  if (last.length < 4) return { id, error: 'action bar not found (quote post?)' };
+  let bar = last[0];
+  while (bar && !last.every(sv => bar.contains(sv))) bar = bar.parentElement;
+  const slots = bar ? [...bar.children].map(ch => (ch.innerText || '').trim()) : [];
+  if (slots.length !== 4) return { id, error: 'unexpected action bar', slots };
+  const n = v => {
+    if (!v) return 0; // 0件の欄は数字が表示されない
+    const t = v.replace(/,/g, '');
+    return /万/.test(t) ? Math.round(parseFloat(t) * 10000) : (parseInt(t, 10) || 0);
+  };
+  const time = card.querySelector('time');
+  const imgs = [...card.querySelectorAll('img')].filter(im => (im.naturalWidth || im.width) > 150).length;
+  return { id, postedAt: time ? time.getAttribute('datetime') : null, like: n(slots[0]), reply: n(slots[1]), repost: n(slots[2]), share: n(slots[3]), hasImage: imgs > 0 };
+}
+
 // 収集の健全性ルール（2026-09-18 追加。全件0で返る収集不具合を検知して学習データの汚染を防ぐ）
 const COLLECTION = {
   fact: '未ログインの公開プロフィールでも ❤・返信・再投稿は表示される（2026-09-18 に @crystal_insence / @gakikocamp / @konnichiwa.karen / @startupkyushu で実機確認）。したがって「未ログインだから数値が0」は誤り',
@@ -57,6 +93,21 @@ const COLLECTION = {
     read_only: 'ログイン状態でも、いいね・フォロー・投稿・返信・DM・プロフィール編集は絶対に行わない。読むだけ。投稿は本人がアプリからコピーして行う',
     not_a_fix: '2026-09-18の「全件0」はログインの問題ではない（未ログインでも公開ページには数値が出る）。パーサーの不具合として別途直すこと',
     on_logout: 'ログインが切れていたら、CIの閲覧数とフォロワー数は送らず、insight_summary の先頭に「CI未ログイン」と書く。他ブランドの公開数値の収集は続ける'
+  },
+  self_repair: {
+    trigger: '前日の insight_summary が「収集失敗」で始まっていたら（2日続けて失敗）、この実行では判定・生成より先に collector.js を修理する。~/ci-daily-engine 内のファイルは編集してよい（投稿・いいね・フォロー等の操作は引き続き禁止）',
+    steps: [
+      'collector.js を collector.js.bak-<今日の日付> にコピーする',
+      '数値の取り方を extractor（下の関数）に置き換える。各投稿の個別ページ https://www.threads.com/@<handle>/post/<id> を開き、page.evaluate(extractor, id) で like / reply / repost / share / postedAt / hasImage を取る',
+      'プロフィール一覧からは投稿IDだけを集め、24時間以上10日以内の未登録投稿だけ個別ページで数値を取る（プロフィール一覧のカードは引用や固定投稿で境界がずれるため数値を読まない）',
+      'フォロワー数はプロフィールの「フォロワーN人」から取り、POST /api/followers に送る（1万人以上は丸め表示なので送らない。CIはログイン時のインサイトから）',
+      'extractor が error を返した投稿（引用投稿など）は記録せず保留にする',
+      'node collector.js で再収集し、verify に通れば新しいJSONで判定・生成を続ける'
+    ],
+    extractor: threadsPostMetrics.toString(),
+    verify: '@konnichiwa.karen の固定投稿 DMPDV04xMMD が like 約307 / reply 約22 / repost 約17 で取れること（2026-09-24 実測）',
+    rollback: '検証に通らなければバックアップに戻し、insight_summary の先頭に「自己修理失敗」と原因を書いて、その日は results を送らない',
+    report: '修理に成功した日は insight_summary の先頭に「自己修理済み」と書く'
   }
 };
 
