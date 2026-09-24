@@ -3,6 +3,8 @@
 // ?id=karen のように1ブランドだけ取得も可
 const SYNC_KEY = 'ci-threads-sync-v1'; // 簡易ボット避け（クライアントに埋め込むため秘密ではない）
 const UPDATED = '2026-09-24';
+// 最優先の連絡。解消したら null に戻す
+const ALERT = '【最優先・2026-09-24】collector.js の数値取得が 9/19〜9/24 の6日連続で失敗中（likes/replies/reposts が全件0）。今日の実行では、判定・生成より先に collection.self_repair の手順で collector.js を修理すること。修理の成否を insight_summary の先頭に「自己修理済み」または「自己修理失敗」と書くこと。9/19〜9/24 の取りこぼしは MacBook 側で実測を補修済み（results に登録済みのIDは再送不要）';
 
 // 全ブランド共通：CIの条件統制つき実験（2026-09-10 ❤4,124 vs ❤111/❤244）で確定した型
 const EQUATION = {
@@ -241,5 +243,5 @@ export async function onRequestGet({ request }) {
   }
   const id = new URL(request.url).searchParams.get('id');
   const brands = id ? BRANDS.filter(b => b.id === id) : BRANDS;
-  return Response.json({ ok: true, updated: UPDATED, equation: EQUATION, success: SUCCESS, common_ng: COMMON_NG, recalibrate: RECALIBRATE, collection: COLLECTION, brands });
+  return Response.json({ ok: true, alert: ALERT, updated: UPDATED, equation: EQUATION, success: SUCCESS, common_ng: COMMON_NG, recalibrate: RECALIBRATE, collection: COLLECTION, brands });
 }
