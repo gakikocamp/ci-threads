@@ -2,9 +2,9 @@
 // ここを直して push すれば、翌朝からエンジンの判定・生成ルールが変わる（Mac Studio 側の改修は不要）
 // ?id=karen のように1ブランドだけ取得も可
 const SYNC_KEY = 'ci-threads-sync-v1'; // 簡易ボット避け（クライアントに埋め込むため秘密ではない）
-const UPDATED = '2026-09-24';
+const UPDATED = '2026-09-26';
 // 最優先の連絡。解消したら null に戻す
-const ALERT = '【最優先・2026-09-24】collector.js の数値取得が 9/19〜9/24 の6日連続で失敗中（likes/replies/reposts が全件0）。今日の実行では、判定・生成より先に collection.self_repair の手順で collector.js を修理すること。修理の成否を insight_summary の先頭に「自己修理済み」または「自己修理失敗」と書くこと。9/19〜9/24 の取りこぼしは MacBook 側で実測を補修済み（results に登録済みのIDは再送不要）';
+const ALERT = '【2026-09-26】9/25の自己修理は成功（原因: Threadsがアイコンのラベルを aria-label から title 属性へ移した）。次の必須事項: フォロワー数を毎日記録するため、POST /api/daily の本文に followers: [{"handle":"<handle>","followers":<数>}] を必ず同梱すること（これは daily への書き込みの一部であり、書き込み範囲内）。CIは crystal_insence と gakikocamp の2件とも同梱する（crystal_insence はログイン時のインサイトの正確な数のみ。取れない日は gakikocamp だけでよい）';
 
 // 全ブランド共通：CIの条件統制つき実験（2026-09-10 ❤4,124 vs ❤111/❤244）で確定した型
 const EQUATION = {
@@ -38,7 +38,7 @@ const SUCCESS = {
   cap_rule: '❤が buzz 閾値を超えても、その24時間のフォロワー増が0なら result は ok 止まりにする。theme に「(フォロワー+0)」と明記する',
   off_topic: '本業（お香・キャンピングカー・イベント集客・起業相談）と関係ないテーマは、❤が伸びても勝ち型として学習しない。insight_summary に「学習対象外（テーマ不一致）」と理由を書く',
   evidence: '2026-09-18 @gakikocamp「なぜ日本はこんなに貧乏な国になってしまったのだろうか。」が❤1,886・返信282・再投稿55まで伸びたが、フォロワー増なし・売上なし（柴垣さん確認）。バズ＝成功ではない',
-  tracking: '毎日すべてのアカウント（@crystal_insence / @gakikocamp を含む）のフォロワー数を取得し、POST /api/followers に {brand, handle, date, followers} を送って記録する（deltaは自動計算）。前日差は insight_summary にも残す。投稿があった日は、その日のdeltaを当日の投稿に紐づけて評価する',
+  tracking: '毎日すべてのアカウント（@crystal_insence / @gakikocamp を含む）のフォロワー数を取得し、POST /api/daily の本文に followers: [{handle, followers}] として同梱する（サーバーが前日差を自動計算して保存。GET /api/followers?handle=<handle>&days=30 で履歴を読める）。1アカウントのブランドは insight_summary の「フォロワーN人」からも自動で記録されるが、同梱が正。投稿があった日は、その日の前日差を当日の投稿に紐づけて評価する',
   tracking_note: '未ログインの公開プロフィールは1万人以上が「5万人」のように丸められる。@crystal_insence の正確なフォロワー数と増減は、ログイン状態のインサイトから取ること。取れない日は followers を送らず、insight_summary に「フォロワー未取得」と書く'
 };
 
@@ -203,6 +203,7 @@ const BRANDS = [
     accounts: [{ handle: 'vantripjapan', main: true, thresholds: { buzz: 10, ok: 3 } }],
     goal: '福岡に旅行に来たい海外の人に、VANの長期レンタルで九州を旅してもらう（予約を増やす）。ただし2026-09-18時点でフォロワー0人のため、当面の最優先はフォロワーと露出の獲得',
     judgment_hold: 'フォロワーが50人未満の間は、❤0を文面の失敗として判定しない（配信そのものが起きていないため）。results には記録するが、insight_summary では「リーチ不足」と明記し、勝ち型・負け型の結論を出さない',
+    research_tags: ['japan travel', 'kyushu', 'japan road trip', 'campervan japan', 'vanlife japan'],
     growth_first: ['CI・橋本華恋・VAN TRIP JAPANのInstagramから導線を作る', '日本旅行の話題に返信して露出を作る', '固定投稿を1本用意する'],
     kpi: '❤とリプ（質問）。国別・言語別・2行目の角度別に反応を記録し、配分を決める',
     audience: '福岡・九州への旅行を考えている海外の人。予約実績(2026-07〜08・15件): カナダ3、シンガポール3、イスラエル2、ポーランド2、スイス・ドイツ・フランス・オーストラリア・マレーシア各1。申込言語は英語12・独1・仏1・ヘブライ1',

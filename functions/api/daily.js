@@ -2,6 +2,8 @@
 // GET  /api/daily : 最新1件を返す（?date=YYYY-MM-DD 指定時はその日の1件）。アプリのレビュー画面最上部に表示する
 // POST /api/daily : 生成された推奨投稿を1件アップサート保存する（id=date）
 //   candidates : 「今日の候補（バズ確度順・最大5本）」用のJSON配列（任意・後方互換のため無くても動く）
+import { MAIN_HANDLE, parseFollowers, upsertFollower } from '../_followers-store.js';
+
 const SYNC_KEY = 'ci-threads-sync-v1'; // 簡易ボット避け（クライアントに埋め込むため秘密ではない）
 
 export async function onRequestGet(context) {
@@ -84,7 +86,28 @@ export async function onRequestPost(context) {
   ).run();
   // ↑ created_atはON CONFLICTのSET対象外なので、初回INSERT時の値が以後も保持される
 
-  return Response.json({ ok: true, id });
+  // フォロワー数の記録（2026-09-26）。エンジンは daily には毎朝必ず書き込むので、ここで受け取る。
+  // payload.followers = [{ handle, followers }] を優先し、無ければ1アカウントのブランドに限り報告文から拾う
+  const followersSaved = [];
+  try {
+    const list = Array.isArray(payload.followers) ? payload.followers.slice(0, 10) : [];
+    for (const f of list) {
+      const handle = str(f && f.handle, 80);
+      const n = num(f && f.followers);
+      if (!handle || n === null || n < 0) continue;
+      followersSaved.push(await upsertFollower(env, { brand, handle: handle.replace(/^@/, ''), date, followers: Math.round(n), note: 'daily同梱' }));
+    }
+    if (followersSaved.length === 0 && MAIN_HANDLE[brand]) {
+      const parsed = parseFollowers(payload.insight_summary);
+      if (parsed !== null) {
+        followersSaved.push(await upsertFollower(env, { brand, handle: MAIN_HANDLE[brand], date, followers: parsed, note: '報告文から自動取得' }));
+      }
+    }
+  } catch (e) {
+    // フォロワー記録の失敗で投稿案の保存を失敗扱いにしない
+  }
+
+  return Response.json({ ok: true, id, followers_saved: followersSaved });
 }
 
 function str(v, max = 300) { return typeof v === 'string' ? v.slice(0, max) : null; }
