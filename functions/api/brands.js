@@ -4,7 +4,7 @@
 const SYNC_KEY = 'ci-threads-sync-v1'; // 簡易ボット避け（クライアントに埋め込むため秘密ではない）
 const UPDATED = '2026-09-26';
 // 最優先の連絡。解消したら null に戻す
-const ALERT = '【2026-09-26】9/25の自己修理は成功（原因: Threadsがアイコンのラベルを aria-label から title 属性へ移した）。次の必須事項: フォロワー数を毎日記録するため、POST /api/daily の本文に followers: [{"handle":"<handle>","followers":<数>}] を必ず同梱すること（これは daily への書き込みの一部であり、書き込み範囲内）。CIは crystal_insence と gakikocamp の2件とも同梱する（crystal_insence はログイン時のインサイトの正確な数のみ。取れない日は gakikocamp だけでよい）';
+const ALERT = '【2026-09-26】(1) 柴垣さんがMac StudioのChromeでThreadsにログイン済みと報告。今日の実行では collection.login.check の手順でログイン中のアカウントを確認し、@crystal_insence なら CI のインサイトから正確なフォロワー数と投稿ごとの閲覧数を取ること。(2) フォロワー数は POST /api/daily の本文に followers: [{"handle":"<handle>","followers":<数>}] を必ず同梱すること（daily への書き込みの一部であり、書き込み範囲内）。CIは crystal_insence と gakikocamp の2件とも同梱する';
 
 // 全ブランド共通：CIの条件統制つき実験（2026-09-10 ❤4,124 vs ❤111/❤244）で確定した型
 const EQUATION = {
@@ -94,7 +94,9 @@ const COLLECTION = {
     gives: 'CIの正確なフォロワー数と前日差、投稿ごとの閲覧数・リーチ（現在はすべて view:na で取れていない）',
     read_only: 'ログイン状態でも、いいね・フォロー・投稿・返信・DM・プロフィール編集は絶対に行わない。読むだけ。投稿は本人がアプリからコピーして行う',
     not_a_fix: '2026-09-18の「全件0」はログインの問題ではない（未ログインでも公開ページには数値が出る）。パーサーの不具合として別途直すこと',
-    on_logout: 'ログインが切れていたら、CIの閲覧数とフォロワー数は送らず、insight_summary の先頭に「CI未ログイン」と書く。他ブランドの公開数値の収集は続ける'
+    on_logout: 'ログインが切れていたら、CIの閲覧数とフォロワー数は送らず、insight_summary の先頭に「CI未ログイン」と書く。他ブランドの公開数値の収集は続ける',
+    check: '毎回の実行の最初に、接続中のChrome（127.0.0.1:9222）で https://www.threads.com/ を開き、ログイン中のアカウント名を確認する。CIの insight_summary の先頭に「ログイン確認: @<アカウント名>」または「ログイン確認: 未ログイン（ログインボタンあり）」と必ず書く',
+    pitfall: '柴垣さんは2026-09-26に「ChromeでThreadsにログイン済み」と報告。それでも未ログインと判定した場合は、エンジンが接続しているChrome（9222番ポートで起動したもの）が普段のChromeと別のプロフィールである可能性が高い。その旨と、接続先Chromeのプロフィールのパス（chrome://version の「プロフィール パス」）を insight_summary に書く'
   },
   self_repair: {
     trigger: '前日の insight_summary が「収集失敗」で始まっていたら（2日続けて失敗）、この実行では判定・生成より先に collector.js を修理する。~/ci-daily-engine 内のファイルは編集してよい（投稿・いいね・フォロー等の操作は引き続き禁止）',
