@@ -4,7 +4,7 @@
 const SYNC_KEY = 'ci-threads-sync-v1'; // 簡易ボット避け（クライアントに埋め込むため秘密ではない）
 const UPDATED = '2026-09-26';
 // 最優先の連絡。解消したら null に戻す
-const ALERT = '【2026-09-26】(1) 柴垣さんがMac StudioのChromeでThreadsにログイン済みと報告。今日の実行では collection.login.check の手順でログイン中のアカウントを確認し、@crystal_insence なら CI のインサイトから正確なフォロワー数と投稿ごとの閲覧数を取ること。(2) フォロワー数は POST /api/daily の本文に followers: [{"handle":"<handle>","followers":<数>}] を必ず同梱すること（daily への書き込みの一部であり、書き込み範囲内）。CIは crystal_insence と gakikocamp の2件とも同梱する';
+const ALERT = '【2026-09-26】(1) 柴垣さんがMac StudioのChromeでThreadsにログイン済みと報告。今日の実行では collection.login.check の手順でログイン中のアカウントを確認し、@crystal_insence なら CI のインサイトから正確なフォロワー数と投稿ごとの閲覧数を取ること。(2) フォロワー数は POST /api/daily の本文に followers: [{"handle":"<handle>","followers":<数>}] を必ず同梱すること（daily への書き込みの一部であり、書き込み範囲内）。CIは crystal_insence と gakikocamp の2件とも同梱する。(3) 2026-09-26から、クリスタルインセンス（CI）の今日の候補は毎日8本つくる（brands の ci.candidates_per_day=8。確度の高い順。5本のうち上位を水増しせず、型と1行目が重ならない8本にする）。他ブランドは5本のまま';
 
 // 全ブランド共通：CIの条件統制つき実験（2026-09-10 ❤4,124 vs ❤111/❤244）で確定した型
 const EQUATION = {
@@ -120,6 +120,7 @@ const BRANDS = [
     id: 'ci',
     name: 'クリスタルインセンス',
     engine: 'legacy',
+    candidates_per_day: 8, // 2026-09-26 柴垣さん指示で5→8本。他ブランドは5本のまま
     goal: '@crystal_insence のバズから売上をつくる（売上が立つのはCIアカウントのバズのみ）',
     kpi: 'フォロワー増と売上が主指標。❤は副指標。お香・国産のものづくりから外れたテーマは、❤が伸びても学習しない', // 既存の run-daily.sh の手順で処理中。新ループでは扱わない
     accounts: [

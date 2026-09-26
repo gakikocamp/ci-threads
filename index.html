@@ -878,8 +878,8 @@ function renderDailyRec() {
   }
 
   if (cands.length > 0) {
-    // ---- 候補モード：バズ確度順ランキング表示（最大5本） ----
-    const sorted = [...cands].sort((a, b) => (b.confidence || 0) - (a.confidence || 0)).slice(0, 5);
+    // ---- 候補モード：バズ確度順ランキング表示（最大8本） ----
+    const sorted = [...cands].sort((a, b) => (b.confidence || 0) - (a.confidence || 0)).slice(0, 8);
     dailyCands = sorted; // copyDailyCand() からindexで参照する
     const insightHtml = r.insight_summary ? `
       <div class="daily-card">
@@ -915,7 +915,7 @@ function renderDailyRec() {
         <span class="daily-title">☀️ 今日の候補</span>
         ${r.date ? `<span class="daily-date">${esc(r.date)}</span>` : ''}
       </div>
-      <div style="font-size:11px;color:var(--muted);margin-bottom:10px;">バズ確度順・最大5本</div>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:10px;">バズ確度順・${sorted.length}本</div>
       ${alertHtml}
       ${insightHtml}
       ${cardsHtml}`;
