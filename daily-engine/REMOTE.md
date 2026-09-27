@@ -1,11 +1,64 @@
-# Mac Studio を外出先から操作する（Remote Control）
+# Mac Studio を世界中どこからでも操作する
 
-2026-09-27 作成。Claude Code 公式の **Remote Control** を使い、Mac Studio で Claude を常駐させる。
+2026-09-27 作成・更新。3つの道具を重ねて、画面操作・コマンド操作・Claudeへの依頼を、海外からでもできるようにする。
 
-- 柴垣さん: スマホの Claude アプリ（Code）や claude.ai/code から、Mac Studio の Claude に話しかけて操作できる
-- MacBook の Claude: 「別のマシンのセッションにメッセージを送る」機能で、Mac Studio の Claude に指示を送り、返事を受け取れる（MacBook 側のセッションも Remote Control につないでいる時）
-- Mac Studio は外向きの HTTPS 通信だけで待ち受ける。ポートは開けない。会話の記録は Anthropic のサーバーに残る
-- Mac Studio の Claude が何かを実行するときの許可確認は、Mac Studio 側のルールのまま効く（MacBook からのメッセージで許可を出すことはできない）
+| 層 | 道具 | できること | 誰が使う |
+|---|---|---|---|
+| 1. 通り道 | **Tailscale**（個人利用は無料のVPN） | Mac Studio・MacBook・iPhone を、どこにいても同じ社内LANにいるようにつなぐ。ポートを公開しない | 全部の土台 |
+| 2. 画面 | **macOS の画面共有** | Mac Studio の画面をそのまま見て操作（Chromeのログイン、アプリの操作など） | 柴垣さん（MacBook・iPhone） |
+| 3. コマンド | **SSH（macOS のリモートログイン）** | ターミナルでファイル編集・ログ確認・プログラム実行 | MacBook の Claude（私）と柴垣さん |
+| 4. 会話 | **Claude の Remote Control** | スマホの Claude アプリから Mac Studio の Claude に頼む | 柴垣さん（と私からの指示） |
+
+層1〜3 がそろうと、私（MacBook の Claude）は SSH で Mac Studio のエンジンを直接直せるようになる（例: collector.js の修理、ログの確認、テスト実行）。層4 は層1〜3 が無くても単独で使える。
+
+## 海外運用で一番こわいこと（先に対策する）
+- **停電や自動アップデートで Mac Studio が再起動すると、FileVault（ディスク暗号化）がオンの場合、起動画面でパスワード入力を待ったまま止まり、ネットにつながらない**。こうなると層1〜4 がすべて使えなくなり、現地に戻るまで復旧できない
+  - 停電対策: `sudo pmset -a autorestart 1`（停電から復帰したら自動で起動）と、小型の UPS（無停電電源装置）
+  - アップデート対策: システム設定 → 一般 → ソフトウェアアップデート → 自動アップデートで「macOS アップデートをインストール」をオフ（ダウンロードだけにする）。更新は帰国後か、`sudo fdesetup authrestart`（再起動を1回だけ暗号化解除つきで行う）で行う
+  - FileVault 自体をオフにするかどうかは、盗難時のリスクとの天秤なので柴垣さんが決める（私からは変更しない）
+- Tailscale のアカウントには2段階認証を必ず付ける
+
+---
+
+# 層1〜3: Tailscale・画面共有・SSH（Mac Studio の前で1回・約20分）
+
+### A. Tailscale を入れる（Mac Studio・MacBook・iPhone の3台）
+1. https://tailscale.com/download から入れる（Mac は公式サイトの Standalone 版が推奨。iPhone は App Store）
+2. 3台とも同じアカウントでログインし、2段階認証をオンにする
+3. Mac Studio の Tailscale の設定で「ログイン時に起動」をオンにする
+4. 管理画面（https://login.tailscale.com/admin/machines）で Mac Studio の「Disable key expiry（鍵の期限切れを無効化）」を設定する（放置すると一定期間で再ログインが必要になり、海外から戻せない）
+5. 管理画面に出る Mac Studio の名前（例: `gakinomac-studio`）を控える
+
+### B. 画面共有をオンにする（Mac Studio）
+- システム設定 → 一般 → 共有 → **画面共有** をオン。「アクセスを許可」は自分のユーザー（gaki）だけにする
+- MacBook から: Finder で `⌘K` → `vnc://gakinomac-studio`（Tailscale の名前）→ Mac Studio のユーザー名とパスワード
+- iPhone から: VNC に対応したアプリ（例: RealVNC Viewer、Screens）で同じ名前に接続
+
+### C. SSH（リモートログイン）をオンにして、MacBook の Claude が使えるようにする（Mac Studio）
+- システム設定 → 一般 → 共有 → **リモートログイン** をオン。「アクセスを許可」は gaki だけにする
+- MacBook の Claude 用の鍵を登録する（パスワードではなく鍵だけで入れるようにする）:
+  1. MacBook で `ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519_macstudio -C "claude@macbook"` を実行（柴垣さん本人が実行）
+  2. 表示された公開鍵（`~/.ssh/id_ed25519_macstudio.pub` の中身）を Mac Studio の `~/.ssh/authorized_keys` に1行追加
+  3. MacBook の `~/.ssh/config` に次を追加:
+     ```
+     Host macstudio
+       HostName gakinomac-studio
+       User gaki
+       IdentityFile ~/.ssh/id_ed25519_macstudio
+     ```
+  4. MacBook で `ssh macstudio 'hostname; ls ~/ci-daily-engine'` が通れば完了
+- パスワードでのログインは使わない（鍵のみ）。Tailscale の外（インターネット）からは届かない
+
+### D. 停電・再起動への備え（Mac Studio）
+```bash
+sudo pmset -a autorestart 1
+pmset -g | grep -E "sleep|autorestart"
+```
+- 自動アップデートの「macOS アップデートをインストール」をオフ（上の「海外運用で一番こわいこと」参照）
+
+---
+
+# 層4: Claude の Remote Control
 
 ## 必要なもの
 - Claude の Pro / Max プラン（APIキーでは使えない）
@@ -81,6 +134,3 @@ MacBook の Claude デスクトップアプリ（Code タブ）で `/remote-cont
 ```bash
 launchctl unload ~/Library/LaunchAgents/com.crystalinsence.remotecontrol.plist
 ```
-
-## 画面ごと操作したい場合（任意）
-Chrome のログインなど画面操作が要るときは、Remote Control ではできない。Tailscale（無料の個人向け VPN）を Mac Studio とスマホに入れ、Mac Studio の「画面共有」をオンにすると、外出先から画面を見て操作できる。どちらもポートを公開しない。設定は柴垣さん本人が行う（システム設定の変更とアカウント作成を伴うため）。
