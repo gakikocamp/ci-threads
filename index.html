@@ -886,7 +886,8 @@ function renderDailyRec() {
         <div class="daily-insight" style="margin-top:0;"><strong>📊 前日の成績</strong><br>${esc(r.insight_summary)}</div>
       </div>` : '';
     // 収集が失敗した日は、学習が止まっていることを先頭で知らせる（候補は過去の実測だけで作られている）
-    const collectFailed = /収集失敗|自己修理失敗/.test(r.insight_summary || '');
+    // エンジンは失敗した日だけ報告の先頭に「収集失敗」「自己修理失敗」と書く。本文中の「収集失敗ではない」等の否定文に反応しないよう先頭だけを見る
+    const collectFailed = /^\s*(収集失敗|自己修理失敗)/.test(r.insight_summary || '');
     const alertHtml = collectFailed ? `
       <div class="daily-card" style="border:1px solid #d9534f;background:#fdf1f0;color:#8a1f1b;">
         <strong>⚠️ データ収集に失敗しています</strong><br>
