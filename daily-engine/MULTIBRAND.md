@@ -98,3 +98,32 @@ CIの既存フロー（run-daily.sh の legacy 部分）にも、この記録と
 - **読むだけ**。ログイン状態でも、いいね・フォロー・投稿・返信・DM・プロフィール編集は絶対に行わない
 - 2026-09-18の「全件0」はログインが原因ではない（未ログインでも公開ページに数値は出る）。パーサーの不具合として別途直す
 - ログインが切れていたら、CIの閲覧数とフォロワーは送らず insight_summary の先頭に「CI未ログイン」と書く。他ブランドの収集は続ける
+
+## CI（legacy）手順の更新（2026-09-27）
+
+9/27時点で、スタートアップ九州・橋本華恋・VAN TRIP JAPAN は /api/brands の alert に従ってフォロワー数を daily に同梱しているが、**CI（legacy）だけは alert を読まず**、候補5本のまま・フォロワー未記録・インサイト未取得。ログイン判定もタグ検索ページは true、プロフィールページは false と食い違っている。Mac Studio の Claude に次を貼る。
+
+```
+~/ci-daily-engine のクリスタルインセンス（CI・legacy）の毎朝の処理を更新してください。スタートアップ九州・橋本華恋・VAN TRIP JAPAN の処理は変えないこと。全APIのヘッダーは x-sync-key: ci-threads-sync-v1。投稿・いいね・フォロー・返信・DMは絶対にしないこと（読むだけ）。
+
+0. run-daily.sh と collector.js を *.bak-20260927 にコピー。
+
+1. 毎回の実行の最初に GET https://ci-threads.pages.dev/api/brands を読み、先頭の alert に書かれた指示を他の手順より先に守るようにする（CIの手順にも、他ブランドの手順にも入れる）。
+
+2. CIの今日の候補は、/api/brands の brands の ci.candidates_per_day の本数（現在8本）つくる。run-daily.sh のCI用プロンプトに書かれている「5本」を、この値を読む形に直す。確度の高い順に並べ、型と1行目が重ならない8本にする（水増ししない）。他ブランドは今までどおり5本。
+
+3. CIの POST /api/daily の本文に followers を同梱する:
+   "followers":[{"handle":"gakikocamp","followers":<公開プロフィールの正確な数>},{"handle":"crystal_insence","followers":<インサイトの正確な数>}]
+   @crystal_insence は公開ページだと「5万人」と丸められるので、丸めた数は送らない（取れない日は gakikocamp だけでよい）。
+
+4. collector.js のログイン判定を直す。9/27の実行では、同じChromeなのに #国産タグ検索では loggedIn:true、@crystal_insence / @gakikocamp のプロフィールでは loggedIn:false と食い違った。プロフィールページ上の「ログイン」表示の有無では判定せず、ホーム（https://www.threads.com/）で自分のアカウントへのリンクや投稿作成ボタンがあるかで1回だけ判定し、ログイン中のアカウント名を記録する。
+
+5. @crystal_insence でログインできていたら、collector.js でThreadsのインサイト画面（プロフィール → インサイト）をUIからたどって開き、正確なフォロワー数と、投稿ごとの閲覧数を取る。閲覧数は /api/results の theme の「view:na」の代わりに「view:<数>」で記録する。読むだけで、設定は変えない。
+
+6. テスト: CIの処理だけを1回実行する。今日（9/27）のCIの候補は5本で入っているので、8本で出し直してよい。終わったら次を報告してください:
+   - ログイン中のアカウント名（ホームで判定した結果）
+   - curl -s 'https://ci-threads.pages.dev/api/followers?days=3' -H 'x-sync-key: ci-threads-sync-v1' に crystal_insence と gakikocamp の今日の記録があるか
+   - curl -s 'https://ci-threads.pages.dev/api/daily?brand=ci' -H 'x-sync-key: ci-threads-sync-v1' の candidates が8本か
+   - インサイトから閲覧数が取れたか（取れなかった場合は理由）
+7. 問題がなければ、明朝6:54の本番からこの形で回る状態にして終了。
+```
