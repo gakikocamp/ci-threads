@@ -917,6 +917,7 @@ function renderDailyRec() {
         ${r.date ? `<span class="daily-date">${esc(r.date)}</span>` : ''}
       </div>
       <div style="font-size:11px;color:var(--muted);margin-bottom:10px;">バズ確度順・${sorted.length}本</div>
+      ${currentBrand === 'ci' ? `<div style="font-size:12px;margin:-4px 0 10px;padding:8px 10px;border-radius:8px;background:var(--card, #fff);border:1px solid var(--line, #e5ded3);">🕖 <strong>@crystal_insence は朝7時〜13時の投稿が伸びています</strong><br><span style="color:var(--muted);">9/10〜9/30の実測: 朝〜昼の中央値❤3,320・バズ4本 ／ 夜の中央値❤218・バズ1本</span></div>` : ''}
       ${alertHtml}
       ${insightHtml}
       ${cardsHtml}`;

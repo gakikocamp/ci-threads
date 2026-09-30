@@ -2,9 +2,9 @@
 // ここを直して push すれば、翌朝からエンジンの判定・生成ルールが変わる（Mac Studio 側の改修は不要）
 // ?id=karen のように1ブランドだけ取得も可
 const SYNC_KEY = 'ci-threads-sync-v1'; // 簡易ボット避け（クライアントに埋め込むため秘密ではない）
-const UPDATED = '2026-09-26';
+const UPDATED = '2026-10-01';
 // 最優先の連絡。解消したら null に戻す
-const ALERT = '【2026-09-26】(1) 柴垣さんがMac StudioのChromeでThreadsにログイン済みと報告。今日の実行では collection.login.check の手順でログイン中のアカウントを確認し、@crystal_insence なら CI のインサイトから正確なフォロワー数と投稿ごとの閲覧数を取ること。(2) フォロワー数は POST /api/daily の本文に followers: [{"handle":"<handle>","followers":<数>}] を必ず同梱すること（daily への書き込みの一部であり、書き込み範囲内）。CIは crystal_insence と gakikocamp の2件とも同梱する。(3) 2026-09-26から、クリスタルインセンス（CI）の今日の候補は毎日8本つくる（brands の ci.candidates_per_day=8。確度の高い順。5本のうち上位を水増しせず、型と1行目が重ならない8本にする）。他ブランドは5本のまま';
+const ALERT = '【2026-09-26】(1) 柴垣さんがMac StudioのChromeでThreadsにログイン済みと報告。今日の実行では collection.login.check の手順でログイン中のアカウントを確認し、@crystal_insence なら CI のインサイトから正確なフォロワー数と投稿ごとの閲覧数を取ること。(2) フォロワー数は POST /api/daily の本文に followers: [{"handle":"<handle>","followers":<数>}] を必ず同梱すること（daily への書き込みの一部であり、書き込み範囲内）。CIは crystal_insence と gakikocamp の2件とも同梱する。(3) 2026-09-26から、クリスタルインセンス（CI）の今日の候補は毎日8本つくる（brands の ci.candidates_per_day=8。確度の高い順。5本のうち上位を水増しせず、型と1行目が重ならない8本にする）。他ブランドは5本のまま。(4) 2026-10-01から: @crystal_insence は9/27を最後にバズが止まっている。brands の ci.posting_window（朝7〜13時の投稿だけが伸びている実測）・ci.fuel_rotation（燃料を日ごとに入れ替え、燃料のない抽象的な1行目は出さない）・ci.no_repeat（直近7日に投稿済みの1行目は出さない）に従って候補をつくり、@crystal_insence 向けの候補の rationale の先頭に「投稿は7〜13時」と書くこと';
 
 // 全ブランド共通：CIの条件統制つき実験（2026-09-10 ❤4,124 vs ❤111/❤244）で確定した型
 const EQUATION = {
@@ -121,6 +121,14 @@ const BRANDS = [
     name: 'クリスタルインセンス',
     engine: 'legacy',
     candidates_per_day: 8, // 2026-09-26 柴垣さん指示で5→8本。他ブランドは5本のまま
+    posting_window: {
+      account: 'crystal_insence',
+      best: '07:00〜13:00',
+      evidence: '2026-09-10〜09-30 実測（商品導線・お礼・訂正を除く）: 朝〜昼(7-13時) 8本 中央値❤3,320・バズ4本 ／ 午後〜夕(13-19時) 6本 中央値❤253・バズ0本 ／ 夜〜深夜(19-7時) 14本 中央値❤218・バズ1本。@gakikocamp は時間帯の差が小さい',
+      rule: '@crystal_insence 向けの候補は、rationale の先頭に「投稿は7〜13時」と書く。@gakikocamp 向けは時間を問わない。時間帯の効果は内容と重なっている可能性があるため、10/1〜10/14 は朝投稿と夜投稿を分けて記録し、差が続くかを検証する'
+    },
+    fuel_rotation: 'あと2人・あと2社・あと5年などの危機の数字（燃料）は効くが、同じ燃料を3日以内に続けて使うと伸びなくなる（9/27〜28「あと2軒」連投後に失速）。燃料は事実表の範囲で日ごとに入れ替え、1本に1つまで。燃料のない抽象的な価値観だけの1行目（例: 香りは、足すより引いた方がいいと思っています。❤118）は候補にしない',
+    no_repeat: '直近7日に @crystal_insence または @gakikocamp で投稿済みの1行目は候補にしない（投稿済みの文面は /api/results の body で確認できる）',
     goal: '@crystal_insence のバズから売上をつくる（売上が立つのはCIアカウントのバズのみ）',
     kpi: 'フォロワー増と売上が主指標。❤は副指標。お香・国産のものづくりから外れたテーマは、❤が伸びても学習しない', // 既存の run-daily.sh の手順で処理中。新ループでは扱わない
     accounts: [
