@@ -357,6 +357,34 @@
       font-size: 15px; font-family: inherit; background: var(--surface); color: var(--text); }
     .x-manual { font-size: 12px; color: var(--muted); background: var(--bg); border-radius: 8px;
       padding: 9px 12px; margin-bottom: 12px; line-height: 1.6; }
+
+    /* BASE返信（BASEレビューへの返信の承認） */
+    .rv-summary { font-size: 12px; color: var(--muted); line-height: 1.7; margin-bottom: 12px; }
+    .rv-summary b { color: var(--text); }
+    .rv-stale { background: #fff3e0; color: #b26a00; border-radius: 10px; padding: 9px 12px; font-size: 12px; margin-bottom: 12px; line-height: 1.6; }
+    .rv-head { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+    .rv-item { font-size: 13px; font-weight: 700; color: var(--text); }
+    .rv-date { font-size: 11px; color: var(--muted); margin-left: auto; }
+    .rv-good { background: #e8f5e9; color: #2e7d32; }
+    .rv-normal { background: #fff8e1; color: #8d6e00; }
+    .rv-bad { background: #fce4ec; color: #ad1457; }
+    .rv-caution { background: #fff3e0; color: #e65100; }
+    .rv-label { font-size: 10px; font-weight: 700; color: var(--muted); letter-spacing: .5px; margin: 12px 0 5px; }
+    .rv-voice { background: var(--bg); border-radius: 10px; padding: 10px 12px; font-size: 13.5px; line-height: 1.75;
+      white-space: pre-wrap; word-break: break-word; }
+    .rv-ta { min-height: 190px; font-size: 14px; line-height: 1.75; background: #fff; }
+    .rv-lint { margin-top: 6px; font-size: 12px; line-height: 1.6; }
+    .rv-lint div { margin-top: 2px; }
+    .rv-ng { color: var(--danger); }
+    .rv-warn { color: #b26a00; }
+    .rv-note { font-size: 12px; color: var(--muted); line-height: 1.6; margin-top: 8px; }
+    .rv-wait { font-size: 12px; color: var(--muted); background: var(--bg); border-radius: 10px; padding: 9px 12px; margin-top: 10px; line-height: 1.6; }
+    .rv-actions { display: flex; gap: 7px; flex-wrap: wrap; margin-top: 12px; }
+    .rv-actions .btn { flex: 1 1 100%; }
+    .rv-done { font-size: 12.5px; color: var(--muted); padding: 9px 0; border-bottom: 1px solid var(--border); line-height: 1.6; }
+    .rv-done:last-child { border-bottom: none; }
+    .rv-backlog-row { font-size: 12.5px; line-height: 1.6; padding: 9px 0; border-bottom: 1px solid var(--border); }
+    .rv-backlog-row:last-child { border-bottom: none; }
   </style>
 </head>
 <body>
@@ -504,6 +532,11 @@
       </div>
     </div>
 
+    <!-- BASE返信（BASEレビューへの返信。下書きはMac Studioが毎日7:40と19:10に作る） -->
+    <div id="view-rv" class="view">
+      <div id="rv-root"><div class="dash-empty">読み込み中…</div></div>
+    </div>
+
     <!-- X（灯守） -->
     <div id="view-x" class="view">
       <div id="x-root"><div class="dash-empty">読み込み中…</div></div>
@@ -530,6 +563,10 @@
     <button class="tab-btn" onclick="switchTab('research',this)">
       <div class="tab-icon">🔍</div>
       <span>研究</span>
+    </button>
+    <button class="tab-btn" id="tab-btn-rv" onclick="switchTab('rv',this)">
+      <div class="tab-icon">💌<span class="badge" id="b-rv" style="display:none"></span></div>
+      <span>BASE返信</span>
     </button>
     <button class="tab-btn" id="tab-btn-x" onclick="switchTab('x',this)">
       <div class="tab-icon"><span class="x-logo">X</span><span class="badge" id="b-x" style="display:none"></span></div>
@@ -762,6 +799,7 @@ function switchTab(tab, btn) {
   if (tab === 'generate') renderGenerateStats();
   if (tab === 'research') openResearchTab();
   if (tab === 'x')        openXTab();
+  if (tab === 'rv')       openRvTab();
 }
 
 // ---- Badges ----
@@ -804,6 +842,14 @@ function renderBrandHeader() {
   if (xBtn) {
     xBtn.hidden = currentBrand !== 'ci';
     if (xBtn.hidden && typeof currentTab !== 'undefined' && currentTab === 'x') {
+      switchTab('review', document.querySelector('.tab-btn'));
+    }
+  }
+  // BASE返信タブもクリスタルインセンス専用
+  const rvBtn = document.getElementById('tab-btn-rv');
+  if (rvBtn) {
+    rvBtn.hidden = currentBrand !== 'ci';
+    if (rvBtn.hidden && typeof currentTab !== 'undefined' && currentTab === 'rv') {
       switchTab('review', document.querySelector('.tab-btn'));
     }
   }
@@ -2108,6 +2154,258 @@ function renderXTab() {
   localStorage.setItem(KEY, '1');
 })();
 
+// ============================================================
+// 【BASE返信】BASEレビューへの返信を承認する
+// Mac Studio が毎日 7:40 と 19:10 にBASEの公開ページを読み、返信が無いレビューに下書きを作る（/api/reviews）
+// 承認・書き直し依頼・見送りは管理トークン（X運用タブと同じ 'ci_x_admin'）で守る
+// BASEに返信が載ると、次の確認で自動的に「完了」になる
+// ============================================================
+let rvState = { data: null, loadedAt: 0, openBacklog: false };
+let rvEdits = loadState('ci_rv_edits', '{}'); // key -> 編集中の返信文（アプリを閉じても残す）
+const RV_SCORE = { good: ['良い', 'rv-good'], normal: ['普通', 'rv-normal'], bad: ['悪い', 'rv-bad'] };
+// BASEの管理画面（返信は Apps → レビュー → 一覧の「返信する」）。行き先はサーバーの設定 base_admin_url を優先
+const RV_BASE_ADMIN = 'https://admin.thebase.com/';
+
+async function openRvTab() {
+  renderRv();
+  if (Date.now() - rvState.loadedAt > 15000) await refreshRv();
+}
+async function refreshRv() {
+  try {
+    const d = await fetch('/api/reviews').then(r => r.ok ? r.json() : null);
+    if (d && d.ok) { rvState.data = d; rvState.loadedAt = Date.now(); }
+  } catch { /* オフライン時は前回の表示のまま */ }
+  rvUpdateBadge();
+  if (currentTab === 'rv') renderRv();
+}
+async function rvPeek() {
+  if (currentBrand !== 'ci') return;
+  try {
+    const d = await fetch('/api/reviews').then(r => r.ok ? r.json() : null);
+    if (d && d.ok) { rvState.data = d; rvState.loadedAt = Date.now(); rvUpdateBadge(); }
+  } catch { /* 何もしない */ }
+}
+// バッジ = 自分の番のもの（承認待ちの下書き＋BASEに貼る待ち）
+function rvUpdateBadge() {
+  const open = rvState.data?.open || [];
+  setBadge('b-rv', open.filter(r => r.status === 'draft' || (r.status === 'approved' && !rvState.data.autopost)).length);
+}
+function rvShortName(name) {
+  let s = String(name || '').replace(/＼[^／]*／/g, '').replace(/【[^】]*】/g, '').replace(/（[^）]*）|\([^)]*\)/g, '');
+  const parts = s.split(/[｜|]/).map(x => x.replace(/CRYSTAL INSENCE|クリスタルインセンス/g, '').replace(/^お香\s*/, '').trim()).filter(Boolean);
+  // 「定期便｜お香 パロサント」は「定期便・パロサント」と呼ぶ
+  if (parts[0] === '定期便' && parts[1]) return ('定期便・' + parts[1]).slice(0, 24);
+  return (parts[0] || name || '').slice(0, 24);
+}
+function rvDaysAgo(d) {
+  const t = Date.parse(d + 'T00:00:00+09:00');
+  if (!t) return '';
+  const n = Math.floor((Date.now() - t) / 86400000);
+  return n <= 0 ? '今日' : `${n}日前`;
+}
+function rvFmtTs(ts) {
+  if (!ts) return '';
+  const d = new Date(ts);
+  return `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+}
+function rvText(r) { return rvEdits[r.key] ?? r.final_text ?? r.draft ?? ''; }
+function rvOnEdit(key, el) {
+  rvEdits[key] = el.value;
+  localStorage.setItem('ci_rv_edits', JSON.stringify(rvEdits));
+}
+function rvLintHtml(lint) {
+  const list = (lint || []).filter(x => x.level !== 'caution');
+  if (!list.length) return '';
+  return `<div class="rv-lint">${list.map(x => `<div class="${x.level === 'ng' ? 'rv-ng' : 'rv-warn'}">${x.level === 'ng' ? '直したほうがよい' : '確認'}: ${esc(x.msg)}</div>`).join('')}</div>`;
+}
+function rvHead(r) {
+  const [label, cls] = RV_SCORE[r.score] || ['?', ''];
+  const caution = (r.lint || []).some(x => x.level === 'caution');
+  return `<div class="rv-head">
+    <span class="chip ${cls}">${label}</span>
+    ${caution ? '<span class="chip rv-caution">要確認</span>' : ''}
+    <span class="rv-item" title="${esc(r.item_name)}">${esc(rvShortName(r.item_name))}</span>
+    <span class="rv-date">${esc((r.review_date || '').slice(5).replace('-', '/'))}・${rvDaysAgo(r.review_date)}</span>
+  </div>`;
+}
+
+function renderRv() {
+  const root = document.getElementById('rv-root');
+  if (!root) return;
+  const d = rvState.data;
+  if (!d) { root.innerHTML = '<div class="dash-empty">読み込み中…</div>'; return; }
+
+  const open = d.open || [];
+  const waiting = open.filter(r => r.status === 'draft');
+  const approved = open.filter(r => r.status === 'approved');
+  const pending = open.filter(r => r.status === 'new' || r.status === 'redo');
+  const c = d.counts || {};
+  const total = Object.values(c).reduce((a, b) => a + b, 0);
+  const run = d.last_run;
+  const stale = !run || Date.now() - run.ts > 36 * 3600000;
+
+  let h = `<div class="section-header">💌 BASEレビューへの返信</div>
+    <div class="rv-summary">最終確認 <b>${run ? rvFmtTs(run.ts) : 'まだ'}</b>（毎日 7:40・19:10）／BASEのレビュー ${total}件<br>
+    承認待ち <b>${waiting.length}</b>件・BASEに貼る待ち <b>${approved.length}</b>件・下書きを準備中 ${pending.length}件</div>`;
+  if (stale) h += `<div class="rv-stale">36時間以上、BASEの確認が届いていません。Mac Studio が止まっているかもしれません。</div>`;
+
+  if (approved.length) {
+    h += `<div class="section-header">📋 BASEに貼って返信</div>`;
+    h += approved.map(r => rvApprovedCard(r, d.autopost)).join('');
+  }
+  h += `<div class="section-header">✍️ 承認待ち</div>`;
+  h += waiting.length ? waiting.map(rvDraftCard).join('')
+    : `<div class="empty" style="padding:28px 20px"><div class="empty-icon">🕊️</div><p>承認待ちの返信はありません</p></div>`;
+  if (pending.length) {
+    h += `<div class="section-header">⏳ 下書きを準備中</div>`;
+    h += pending.map(rvPendingCard).join('');
+  }
+  if ((d.backlog || []).length) h += rvBacklogHtml(d.backlog);
+  if ((d.done || []).length) {
+    h += `<div class="section-header">✓ 最近の完了</div><div class="gen-card">${d.done.map(rvDoneRow).join('')}</div>`;
+  }
+  h += `<button class="btn-sm btn-del" style="width:100%;margin-top:4px" onclick="refreshRv().then(()=>showToast('最新にしました'))">↻ 最新にする</button>`;
+  root.innerHTML = h;
+}
+
+function rvDraftCard(r) {
+  return `<div class="card" id="rv-${r.key}">
+    ${rvHead(r)}
+    <div class="rv-label">お客様の声</div>
+    <div class="rv-voice">${esc(r.comment)}</div>
+    <div class="rv-label">返信の下書き（直してから承認できます）</div>
+    <textarea class="form-input form-textarea rv-ta" id="rv-ta-${r.key}" oninput="rvOnEdit('${r.key}', this)">${esc(rvText(r))}</textarea>
+    ${rvLintHtml(r.lint)}
+    ${r.draft_note ? `<div class="rv-note">メモ: ${esc(r.draft_note)}</div>` : ''}
+    <div class="rv-actions">
+      <button class="btn btn-approve" onclick="rvApprove('${r.key}', this)">承認してコピー</button>
+      <button class="btn-sm btn-copy-reply" style="flex:1" onclick="rvRedo('${r.key}')">書き直しを頼む</button>
+      <button class="btn-sm btn-del" onclick="rvSkip('${r.key}')">返信しない</button>
+    </div>
+  </div>`;
+}
+function rvApprovedCard(r, autopost) {
+  const how = autopost
+    ? 'Mac Studio が次の実行でBASEに返信します。'
+    : 'BASEの管理画面で Apps → レビュー を開き、このレビューの「返信する」に貼り付けて「返信を投稿する」を押してください。BASEに載ると、次の確認で自動的に完了になります。';
+  return `<div class="card" id="rv-${r.key}">
+    ${rvHead(r)}
+    <div class="rv-voice" style="font-size:12.5px;color:var(--muted)">${esc((r.comment || '').slice(0, 80))}${(r.comment || '').length > 80 ? '…' : ''}</div>
+    <div class="rv-label">承認した返信</div>
+    <div class="rv-voice">${esc(r.final_text)}</div>
+    <div class="rv-wait">${how}</div>
+    <div class="rv-actions">
+      <button class="btn-sm btn-copy-main" onclick="xCopy(rvState.data.open.find(x=>x.key==='${r.key}')?.final_text, this)">返信をコピー</button>
+      <a class="btn-sm btn-posted buzz-link" href="${esc(rvState.data?.base_admin_url || RV_BASE_ADMIN)}" target="_blank" rel="noopener">BASEを開く</a>
+      <button class="btn-sm btn-del" onclick="rvReopen('${r.key}')">承認を取り消す</button>
+    </div>
+  </div>`;
+}
+function rvPendingCard(r) {
+  const why = r.status === 'redo'
+    ? `書き直しを依頼中です。${r.redo_memo ? 'メモ: ' + esc(r.redo_memo) : ''}`
+    : '次の確認（7:40・19:10）で下書きができます。';
+  return `<div class="card" id="rv-${r.key}">
+    ${rvHead(r)}
+    <div class="rv-voice">${esc(r.comment)}</div>
+    <div class="rv-wait">${why}</div>
+    <div class="rv-actions"><button class="btn-sm btn-del" onclick="rvSkip('${r.key}')">返信しない</button></div>
+  </div>`;
+}
+function rvBacklogHtml(list) {
+  const rows = rvState.openBacklog ? list.map(r => `<div class="rv-backlog-row">
+      <div><span class="chip ${(RV_SCORE[r.score] || [])[1] || ''}">${(RV_SCORE[r.score] || ['?'])[0]}</span>
+      <b>${esc(rvShortName(r.item_name))}</b> <span style="color:var(--muted)">${esc(r.review_date)}</span></div>
+      <div style="color:var(--muted);margin:3px 0 6px">${esc((r.comment || '').slice(0, 90))}${(r.comment || '').length > 90 ? '…' : ''}</div>
+      <button class="btn-sm btn-copy-reply" onclick="rvQueue(['${r.key}'])">下書きを頼む</button>
+      <button class="btn-sm btn-del" onclick="rvSkipMany(['${r.key}'])">返信しない</button>
+    </div>`).join('') : '';
+  return `<div class="section-header">🗂 過去の未返信（${list.length}件・90日より前）</div>
+    <div class="gen-card">
+      <p style="margin-bottom:10px">90日より前のレビューは、自動では下書きを作りません。返信したいものだけ「下書きを頼む」を押してください。</p>
+      <div class="rv-actions" style="margin-top:0">
+        <button class="btn-sm btn-copy-reply" onclick="rvState.openBacklog=!rvState.openBacklog;renderRv()">${rvState.openBacklog ? '閉じる' : '一覧を見る'}</button>
+        <button class="btn-sm btn-copy-reply" onclick="rvQueue(rvState.data.backlog.map(x=>x.key))">すべて下書きを頼む</button>
+        <button class="btn-sm btn-del" onclick="rvSkipMany(rvState.data.backlog.map(x=>x.key))">すべて返信しない</button>
+      </div>
+      ${rows}
+    </div>`;
+}
+function rvDoneRow(r) {
+  const label = { posted: '✓ BASEに掲載', replied_direct: '✓ BASEで直接返信', skipped: '返信しない' }[r.status] || r.status;
+  return `<div class="rv-done"><b>${label}</b>・${esc(rvShortName(r.item_name))}・${esc(r.review_date)}
+    <div>${esc((r.comment || '').slice(0, 60))}${(r.comment || '').length > 60 ? '…' : ''}</div>
+    ${r.status === 'skipped' ? `<button class="btn-sm btn-del" style="margin-top:5px" onclick="rvReopen('${r.key}')">戻す</button>` : ''}</div>`;
+}
+
+// 管理トークン付きで /api/reviews に送る（X運用タブと同じトークン）
+async function rvAdminPost(body) {
+  let token = xAdminToken();
+  if (!token) {
+    const t = prompt('管理トークン（X運用タブと同じもの）');
+    if (!t) return null;
+    localStorage.setItem('ci_x_admin', t.trim());
+    token = t.trim();
+  }
+  try {
+    const res = await fetch('/api/reviews', { method: 'POST', headers: { 'content-type': 'application/json', 'x-admin-token': token }, body: JSON.stringify(body) });
+    const data = await res.json().catch(() => ({}));
+    if (res.status === 403) { localStorage.removeItem('ci_x_admin'); showToast('❌ 管理トークンが違います'); return null; }
+    return data;
+  } catch {
+    showToast('❌ 通信できませんでした');
+    return null;
+  }
+}
+
+async function rvApprove(key, btn) {
+  const ta = document.getElementById('rv-ta-' + key);
+  const text = (ta ? ta.value : '').trim();
+  if (!text) { showToast('返信文が空です'); return; }
+  // コピーは押した瞬間に行う（iPhoneは通信のあとだとコピーさせてくれない）
+  if (!rvState.data.autopost) xCopy(text, btn);
+  btn.disabled = true;
+  let res = await rvAdminPost({ action: 'approve', key, text });
+  if (res && res.needs_confirm) {
+    const msgs = res.lint.filter(x => x.level === 'ng').map(x => '・' + x.msg).join('\n');
+    if (confirm(`気になる点があります。\n${msgs}\n\nこのまま承認しますか？`)) {
+      res = await rvAdminPost({ action: 'approve', key, text, force: true });
+    } else { btn.disabled = false; return; }
+  }
+  btn.disabled = false;
+  if (!res || !res.ok) { if (res && res.error) showToast('❌ ' + res.error); return; }
+  delete rvEdits[key];
+  localStorage.setItem('ci_rv_edits', JSON.stringify(rvEdits));
+  showToast(rvState.data.autopost ? '承認しました' : '承認してコピーしました。BASEに貼ってください');
+  await refreshRv();
+}
+async function rvRedo(key) {
+  const memo = prompt('どう直してほしいですか？（例: もっと短く／香りの話を足して）');
+  if (memo === null) return;
+  const res = await rvAdminPost({ action: 'redo', key, memo: memo.trim() });
+  if (res && res.ok) { showToast('書き直しを頼みました（次の確認で届きます）'); await refreshRv(); }
+}
+async function rvSkip(key) {
+  if (!confirm('このレビューには返信しない、でよいですか？')) return;
+  const res = await rvAdminPost({ action: 'skip', key });
+  if (res && res.ok) { showToast('返信しないにしました'); await refreshRv(); }
+}
+async function rvSkipMany(keys) {
+  if (!keys.length || !confirm(`${keys.length}件を「返信しない」にします。よいですか？`)) return;
+  const res = await rvAdminPost({ action: 'skip', keys });
+  if (res && res.ok) { showToast(`${res.changed}件を返信しないにしました`); await refreshRv(); }
+}
+async function rvQueue(keys) {
+  if (!keys.length) return;
+  if (keys.length > 1 && !confirm(`${keys.length}件の下書きを頼みます。よいですか？`)) return;
+  const res = await rvAdminPost({ action: 'queue', keys });
+  if (res && res.ok) { showToast(`${res.changed}件、次の確認で下書きを作ります`); await refreshRv(); }
+}
+async function rvReopen(key) {
+  const res = await rvAdminPost({ action: 'reopen', key });
+  if (res && res.ok) { showToast('承認待ちに戻しました'); await refreshRv(); }
+}
+
 // ---- Init ----
 renderBrandHeader();
 checkNewBatches();
@@ -2116,6 +2414,7 @@ renderDailyRec();
 fetchDailyRec();
 updateBadges();
 xPeek();
+rvPeek();
 // 起動時に結果をD1へ同期（初回は全履歴のバックフィル、以降は未送信分の再送）
 if (historyList.length > 0) syncResults();
 // 起動時にバズ・ライブラリの未同期分を再送。オンライン復帰時も同様に再送する
