@@ -85,10 +85,11 @@ const NG_RULES = [
   [/セール|割引|値引き|[%％]\s*(オフ|OFF)|クーポン|ポイント|お得/, '値引き・販促の言葉'],
   [/みちひろ|Michihiro/, '名前の読みの誤り（どうこう）'],
 ];
+// 近くに並んだときだけ見る（「八女杉と椨粉で」は正しいので、八女の直後が杉なら除く）
 const FACT_RULES = [
-  [/八女/, /椨|たぶ|タブ|白檀|水晶/, '八女に結びつけてよいのは杉だけ'],
-  [/国産|日本産/, /白檀/, '白檀を国産と書いている'],
-  [/ブラジル|輸入/, /水晶/, '水晶は山口県産'],
+  [/八女(?!杉)[^。\n]{0,8}(椨|たぶ|タブ|白檀|水晶)|(椨|たぶ|タブ|白檀|水晶)[^。\n]{0,8}八女(?!杉)/, '八女に結びつけてよいのは杉だけ'],
+  [/(国産|日本産)[^。\n]{0,6}白檀|白檀[^。\n]{0,6}(国産|日本産)/, '白檀を国産と書いている'],
+  [/(ブラジル|輸入)[^。\n]{0,8}水晶|水晶[^。\n]{0,8}(ブラジル|輸入)/, '水晶は山口県産'],
 ];
 const WARN_RULES = [
   [/[!！]/, '「！」は使わない'],
@@ -101,7 +102,7 @@ export function lintReply(text) {
   const t = typeof text === 'string' ? text : '';
   const out = [];
   for (const [re, msg] of NG_RULES) if (re.test(t)) out.push({ level: 'ng', msg });
-  for (const [a, b, msg] of FACT_RULES) if (a.test(t) && b.test(t)) out.push({ level: 'ng', msg });
+  for (const [re, msg] of FACT_RULES) if (re.test(t)) out.push({ level: 'ng', msg });
   for (const [re, msg] of WARN_RULES) if (re.test(t)) out.push({ level: 'warn', msg });
   const worn = WORN.filter(w => t.includes(w));
   if (worn.length >= 2) out.push({ level: 'warn', msg: `使い古した言い回しが${worn.length}つ（${worn.join('・')}）` });

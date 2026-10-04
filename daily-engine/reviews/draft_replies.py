@@ -42,24 +42,28 @@ SCHEMA = {
 }
 
 
-def http(method, path, body=None):
-    cmd = ["curl", "-s", "-m", "60", "-X", method, API + path, "-H", "content-type: application/json",
-           "-H", f"x-writer-key: {KEY}", "-w", "\n%{http_code}"]
+def http(method, path, body=None, tries=4):
+    """通信の一時的な失敗（HTTP 000・5xx）は間を空けて最大4回まで試す"""
     tmp = None
     if body is not None:
         tmp = tempfile.NamedTemporaryFile("w", suffix=".json", delete=False, encoding="utf-8")
         json.dump(body, tmp, ensure_ascii=False)
         tmp.close()
-        cmd += ["--data-binary", "@" + tmp.name]
+    cmd = ["curl", "-s", "-m", "90", "-X", method, API + path, "-H", "content-type: application/json",
+           "-H", f"x-writer-key: {KEY}", "-w", "\n%{http_code}"] + (["--data-binary", "@" + tmp.name] if tmp else [])
     try:
-        r = subprocess.run(cmd, capture_output=True, text=True)
+        for i in range(tries):
+            r = subprocess.run(cmd, capture_output=True, text=True)
+            out, _, code = r.stdout.rpartition("\n")
+            if code == "200":
+                return json.loads(out)
+            if code != "000" and not code.startswith("5"):
+                break  # 403・400 などは試し直しても変わらない
+            time.sleep(10 * (i + 1))
     finally:
         if tmp:
             os.remove(tmp.name)
-    out, _, code = r.stdout.rpartition("\n")
-    if code != "200":
-        raise SystemExit(f"{method} {path} が失敗: HTTP {code} {out[:300]}")
-    return json.loads(out)
+    raise RuntimeError(f"{method} {path} が失敗: HTTP {code} {out[:300]}")
 
 
 def ask_claude(prompt, tries=3):
@@ -197,15 +201,21 @@ def main():
     print(f"下書きを作るレビュー: {len(targets)}件")
 
     by_key = {t["key"]: t for t in targets}
-    done = []
+    made, saved, ng_left, failed = 0, 0, 0, 0
+    # 6件ずつ「作る→機械チェック→NGは1回書き直し→保存」。途中で失敗しても、それまでの分は残る
     for i in range(0, len(targets), CHUNK):
         chunk = targets[i:i + CHUNK]
         try:
             drafts = [d for d in ask_claude(build_prompt(guide, past, chunk)) if d.get("key") in by_key]
         except RuntimeError as e:
             print(f"  {len(chunk)}件のまとまりを飛ばした（次の実行で再挑戦）: {e}")
+            failed += len(chunk)
             continue
-        lint = {x["key"]: x["lint"] for x in http("POST", "/api/reviews", {"action": "draft", "dry": True, "drafts": drafts})["lint"]}
+        try:
+            lint = {x["key"]: x["lint"] for x in http("POST", "/api/reviews", {"action": "draft", "dry": True, "drafts": drafts})["lint"]}
+        except RuntimeError as e:
+            print(f"  機械チェックに失敗（保存時にもう一度チェックされる）: {e}")
+            lint = {}
         for d in drafts:
             ng = [x["msg"] for x in lint.get(d["key"], []) if x["level"] == "ng"]
             if ng:
@@ -218,23 +228,27 @@ def main():
                 if fixed:
                     d["draft"] = fixed[0].get("draft") or d["draft"]
                     d["note"] = (d.get("note") or "") + "（機械チェックで直した: " + "・".join(ng) + "）"
-            done.append(d)
         missing = [t["key"] for t in chunk if t["key"] not in {d["key"] for d in drafts}]
         if missing:
             print(f"  下書きが返ってこなかった: {missing}")
+        made += len(drafts)
+        if dry:
+            for d in drafts:
+                t = by_key[d["key"]]
+                print(f"\n=== {t['review_date']} {SCORE_JA.get(t['score'])} {t['item_name'][:24]}\n{t['comment'][:200]}\n--- 下書き（caution={d.get('caution')}）\n{d['draft']}\n--- note: {d.get('note')}")
+            continue
+        try:
+            res = http("POST", "/api/reviews", {"action": "draft", "drafts": drafts})
+        except RuntimeError as e:
+            print(f"  {len(drafts)}件の保存に失敗（次の実行で作り直す）: {e}")
+            failed += len(drafts)
+            continue
+        saved += sum(1 for x in res["saved"] if x["saved"])
+        ng_left += sum(1 for x in res["saved"] if any(y["level"] == "ng" for y in x["lint"]))
 
-    if not done:
-        raise SystemExit("下書きを1件も作れなかった")
-    if dry:
-        for d in done:
-            t = by_key[d["key"]]
-            print(f"\n=== {t['review_date']} {SCORE_JA.get(t['score'])} {t['item_name'][:24]}\n{t['comment'][:200]}\n--- 下書き（caution={d.get('caution')}）\n{d['draft']}\n--- note: {d.get('note')}")
-        return
-    res = http("POST", "/api/reviews", {"action": "draft", "drafts": done})
-    ok = sum(1 for s in res["saved"] if s["saved"])
-    ng = sum(1 for s in res["saved"] if any(x["level"] == "ng" for x in s["lint"]))
-    print(f"保存: {ok}/{len(done)}件（機械チェックNGが残った下書き {ng}件・アプリに表示される）")
-
+    print(f"作成 {made}件・保存 {saved}件・失敗 {failed}件（機械チェックNGが残った下書き {ng_left}件・アプリに表示される）")
+    if made == 0 or (not dry and saved == 0):
+        raise SystemExit("下書きを1件も保存できなかった")
 
 if __name__ == "__main__":
     main()
