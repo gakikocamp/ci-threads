@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""BASE（camjyo.theshop.jp）のレビューを全商品ぶん読み、ci-threads の /api/reviews に同期する。
+"""BASE（shop.crystalinsence.com／旧 camjyo.theshop.jp）のレビューを全商品ぶん読み、ci-threads の /api/reviews に同期する。
 
 読むのは公開ページだけ（ログイン不要）。商品ページのレビュー欄が読み込む断片
-  https://camjyo.theshop.jp/items/<id>/reviews?format=item&score=&page=<n>
+  https://shop.crystalinsence.com/items/<id>/reviews?format=item&score=&page=<n>
 に、評価（良い・普通・悪い）・日付・本文・ショップの返信が入っている。
 BASEは連続アクセスで429を返すので、1件ずつ間を空ける。
 
@@ -17,7 +17,7 @@ BASEは連続アクセスで429を返すので、1件ずつ間を空ける。
 import hashlib, html, json, os, re, subprocess, sys, time
 from datetime import datetime, timezone, timedelta
 
-SHOP = "https://camjyo.theshop.jp"
+SHOP = "https://shop.crystalinsence.com"  # 2026-10-05 独自ドメインへ移行（旧 camjyo.theshop.jp は301転送）
 API = os.environ.get("CI_THREADS_API", "https://ci-threads.pages.dev")
 UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0 Safari/537.36"
 JST = timezone(timedelta(hours=9))
@@ -64,7 +64,7 @@ def parse_page(item_id, s):
 
 def item_ids():
     top = get(SHOP + "/")
-    return sorted(set(re.findall(r'href="https://camjyo\.theshop\.jp/items/(\d+)"', top)), key=int)
+    return sorted(set(re.findall(r'href="https://(?:shop\.crystalinsence\.com|camjyo\.theshop\.jp)/items/(\d+)"', top)), key=int)
 
 
 def crawl(log=print):

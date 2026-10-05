@@ -109,7 +109,7 @@ def item_facts(item_id):
     out = ""
     for i in range(3):
         r = subprocess.run(["curl", "-s", "-m", "30", "-A", "Mozilla/5.0 (Macintosh) Chrome/128.0", "-w", "\n%{http_code}",
-                            f"https://camjyo.theshop.jp/items/{item_id}"], capture_output=True, text=True)
+                            f"https://shop.crystalinsence.com/items/{item_id}"], capture_output=True, text=True)
         body, _, code = r.stdout.rpartition("\n")
         time.sleep(2)  # BASEの429避け
         if code == "200":
