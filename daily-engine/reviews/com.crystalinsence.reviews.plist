@@ -9,22 +9,14 @@
 		<string>/bin/zsh</string>
 		<string>/Users/gaki/ci-daily-engine/reviews/run-reviews.sh</string>
 	</array>
-	<!-- 朝はThreadsのエンジン（6:54〜7:30ごろ）が終わってから。夜にもう一度見る -->
+	<!-- 1日1回。朝のThreadsのエンジン（6:54〜7:30ごろ）が終わってから -->
 	<key>StartCalendarInterval</key>
-	<array>
-		<dict>
-			<key>Hour</key>
-			<integer>7</integer>
-			<key>Minute</key>
-			<integer>40</integer>
-		</dict>
-		<dict>
-			<key>Hour</key>
-			<integer>19</integer>
-			<key>Minute</key>
-			<integer>10</integer>
-		</dict>
-	</array>
+	<dict>
+		<key>Hour</key>
+		<integer>7</integer>
+		<key>Minute</key>
+		<integer>40</integer>
+	</dict>
 	<key>RunAtLoad</key>
 	<false/>
 	<key>StandardOutPath</key>

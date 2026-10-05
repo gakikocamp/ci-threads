@@ -532,7 +532,7 @@
       </div>
     </div>
 
-    <!-- BASE返信（BASEレビューへの返信。下書きはMac Studioが毎日7:40と19:10に作る） -->
+    <!-- BASE返信（BASEレビューへの返信。下書きはMac Studioが毎日7:40に作る） -->
     <div id="view-rv" class="view">
       <div id="rv-root"><div class="dash-empty">読み込み中…</div></div>
     </div>
@@ -2156,7 +2156,7 @@ function renderXTab() {
 
 // ============================================================
 // 【BASE返信】BASEレビューへの返信を承認する
-// Mac Studio が毎日 7:40 と 19:10 にBASEの公開ページを読み、返信が無いレビューに下書きを作る（/api/reviews）
+// Mac Studio が毎日 7:40 にBASEの公開ページを読み、返信が無いレビューに下書きを作る（/api/reviews）
 // 承認・書き直し依頼・見送りは管理トークン（X運用タブと同じ 'ci_x_admin'）で守る
 // BASEに返信が載ると、次の確認で自動的に「完了」になる
 // ============================================================
@@ -2245,7 +2245,7 @@ function renderRv() {
   const stale = !run || Date.now() - run.ts > 36 * 3600000;
 
   let h = `<div class="section-header">💌 BASEレビューへの返信</div>
-    <div class="rv-summary">最終確認 <b>${run ? rvFmtTs(run.ts) : 'まだ'}</b>（毎日 7:40・19:10）／BASEのレビュー ${total}件<br>
+    <div class="rv-summary">最終確認 <b>${run ? rvFmtTs(run.ts) : 'まだ'}</b>（毎日 7:40）／BASEのレビュー ${total}件<br>
     承認待ち <b>${waiting.length}</b>件・BASEに貼る待ち <b>${approved.length}</b>件・下書きを準備中 ${pending.length}件</div>`;
   if (stale) h += `<div class="rv-stale">36時間以上、BASEの確認が届いていません。Mac Studio が止まっているかもしれません。</div>`;
 
@@ -2304,7 +2304,7 @@ function rvApprovedCard(r, autopost) {
 function rvPendingCard(r) {
   const why = r.status === 'redo'
     ? `書き直しを依頼中です。${r.redo_memo ? 'メモ: ' + esc(r.redo_memo) : ''}`
-    : '次の確認（7:40・19:10）で下書きができます。';
+    : '次の確認（毎朝 7:40）で下書きができます。';
   return `<div class="card" id="rv-${r.key}">
     ${rvHead(r)}
     <div class="rv-voice">${esc(r.comment)}</div>

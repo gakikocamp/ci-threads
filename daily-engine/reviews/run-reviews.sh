@@ -1,7 +1,7 @@
 #!/bin/zsh
 # =============================================================
 # BASEレビュー返信の下書きエンジン（Mac Studio 常駐）
-# launchd (com.crystalinsence.reviews) から毎日 7:40 と 19:10 に起動
+# launchd (com.crystalinsence.reviews) から毎日 7:40 に起動（1日1回）
 #   1) review_sync.py   : BASEの公開ページから全レビューを読み、/api/reviews に同期（ログイン不要）
 #   2) draft_replies.py : 返信が無い本文ありレビューに下書きを作る（claude -p・道具なし）
 # 投稿はしない。BASEに載るのは柴垣さんがアプリ（ci-threads の「BASE返信」タブ）で承認したあと
