@@ -2164,7 +2164,7 @@ let rvState = { data: null, loadedAt: 0, openBacklog: false };
 let rvEdits = loadState('ci_rv_edits', '{}'); // key -> 編集中の返信文（アプリを閉じても残す）
 const RV_SCORE = { good: ['良い', 'rv-good'], normal: ['普通', 'rv-normal'], bad: ['悪い', 'rv-bad'] };
 // BASEの管理画面（返信は Apps → レビュー → 一覧の「返信する」）。行き先はサーバーの設定 base_admin_url を優先
-const RV_BASE_ADMIN = 'https://admin.thebase.com/';
+const RV_BASE_ADMIN = 'https://admin.thebase.com/apps/64/entry';
 
 async function openRvTab() {
   renderRv();
@@ -2287,7 +2287,7 @@ function rvDraftCard(r) {
 function rvApprovedCard(r, autopost) {
   const how = autopost
     ? 'Mac Studio が次の実行でBASEに返信します。'
-    : 'BASEの管理画面で Apps → レビュー を開き、このレビューの「返信する」に貼り付けて「返信を投稿する」を押してください。BASEに載ると、次の確認で自動的に完了になります。';
+    : '「BASEを開く」でレビュー一覧が開きます。このレビューの「返信する」に貼り付けて「返信を投稿する」を押してください。BASEに載ると、次の確認で自動的に完了になります。';
   return `<div class="card" id="rv-${r.key}">
     ${rvHead(r)}
     <div class="rv-voice" style="font-size:12.5px;color:var(--muted)">${esc((r.comment || '').slice(0, 80))}${(r.comment || '').length > 80 ? '…' : ''}</div>

@@ -8,9 +8,9 @@ export const REVIEW_GUIDE = {
   autopost: false,
   // 直近この日数のレビューだけ自動で下書きする。古い未返信は backlog に置き、アプリで選んだものだけ下書きする
   draft_window_days: 90,
-  // アプリの「BASEを開く」の行き先。返信は 管理画面 → Apps → レビュー → 一覧の「返信する」→「返信を投稿する」
-  // （BASEヘルプ・BASE U で確認。レビュー一覧の直URLが分かったらここを差し替える）
-  base_admin_url: 'https://admin.thebase.com/',
+  // アプリの「BASEを開く」の行き先＝BASE管理画面のレビューApp（2026-10-05 管理画面のメニューから確認）。
+  // 一覧の「返信する」→「返信を投稿する」で返信する
+  base_admin_url: 'https://admin.thebase.com/apps/64/entry',
 
   voice: [
     '香司 柴垣が一人で書く返信。一人称は「私」。当店・私たち・わたしたち・私ども・スタッフ・弊社は使わない',
