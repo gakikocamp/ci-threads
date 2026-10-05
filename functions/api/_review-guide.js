@@ -4,8 +4,9 @@
 
 export const REVIEW_GUIDE = {
   version: '2026-10-05',
-  // 承認したらMac StudioがBASEに自動で返信するか。BASEのログインと返信画面の確認が済むまで false
-  autopost: false,
+  // 承認したら Mac Studio が10分以内にBASEへ投稿する（post_replies.js・収集用ChromeのBASEログインを使う）。
+  // 2026-10-05 ログインと返信画面（/review/review_ajax/save_reply）を確認し、19件の照合が1対1で通ったので有効化
+  autopost: true,
   // 直近この日数のレビューだけ自動で下書きする。古い未返信は backlog に置き、アプリで選んだものだけ下書きする
   draft_window_days: 90,
   // アプリの「BASEを開く」の行き先＝BASE管理画面のレビューApp（2026-10-05 管理画面のメニューから確認）。
@@ -113,5 +114,6 @@ export function lintReply(text) {
   const len = t.replace(/香司\s*柴垣\s*$/, '').replace(/\s/g, '').length;
   if (len < 40) out.push({ level: 'warn', msg: `短すぎる（${len}字）` });
   if (len > 320) out.push({ level: 'warn', msg: `長すぎる（${len}字）` });
+  if (t.trim().length > 500) out.push({ level: 'ng', msg: `BASEの返信は500文字まで（今は${t.trim().length}文字）` });
   return out;
 }

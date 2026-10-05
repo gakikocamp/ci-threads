@@ -3,7 +3,7 @@
 // GET  /api/reviews?status=a,b  : エンジン用。指定した状態の行だけ
 // GET  /api/reviews?guide=1     : エンジン用。返信の書き方＋過去の返信の実例
 // POST /api/reviews {action}
-//   sync / draft / posted              … Mac Studio（x-writer-key）
+//   sync / draft / posted / poster     … Mac Studio（x-writer-key）
 //   approve / redo / skip / reopen / queue … 人間（アプリ・x-admin-token）
 import { isWriter, isAdmin, forbidden } from './x/_auth.js';
 import { REVIEW_GUIDE, lintReply } from './_review-guide.js';
@@ -36,12 +36,13 @@ export async function onRequestGet({ request, env }) {
     return Response.json({ ok: true, reviews: results.map(parseLint) });
   }
 
-  const [open, backlog, done, counts, run] = await db.batch([
+  const [open, backlog, done, counts, run, poster] = await db.batch([
     db.prepare(`SELECT ${COLS} FROM base_reviews WHERE status IN ('new','draft','redo','approved') ORDER BY review_date DESC LIMIT 200`),
     db.prepare(`SELECT key, item_name, score, review_date, comment FROM base_reviews WHERE status = 'backlog' ORDER BY review_date DESC LIMIT 200`),
     db.prepare(`SELECT ${COLS} FROM base_reviews WHERE status IN ('posted','replied_direct','skipped') ORDER BY updated_at DESC LIMIT 15`),
     db.prepare(`SELECT status, COUNT(*) AS n FROM base_reviews GROUP BY status`),
     db.prepare(`SELECT ts, items_counted, reviews_total, new_reviews, newly_replied, note FROM base_review_runs ORDER BY id DESC LIMIT 1`),
+    db.prepare(`SELECT ts, ok, note FROM base_review_poster ORDER BY id DESC LIMIT 1`),
   ]);
   const c = {};
   for (const r of counts.results) c[r.status] = r.n;
@@ -51,6 +52,7 @@ export async function onRequestGet({ request, env }) {
     base_admin_url: REVIEW_GUIDE.base_admin_url,
     counts: c,
     last_run: run.results[0] || null,
+    poster_last: poster.results[0] || null,
     open: open.results.map(parseLint),
     backlog: backlog.results,
     done: done.results.map(parseLint),
@@ -64,10 +66,15 @@ export async function onRequestPost({ request, env }) {
   const writer = isWriter(request, env);
   const admin = isAdmin(request, env);
 
-  if (['sync', 'draft', 'posted'].includes(action)) {
+  if (['sync', 'draft', 'posted', 'poster'].includes(action)) {
     if (!writer) return forbidden();
     if (action === 'sync') return sync(env.DB, p);
     if (action === 'draft') return saveDrafts(env.DB, p);
+    if (action === 'poster') {
+      await env.DB.prepare('INSERT INTO base_review_poster (ts, ok, note) VALUES (?1, ?2, ?3)')
+        .bind(Date.now(), p.ok ? 1 : 0, str(p.note, 300)).run();
+      return Response.json({ ok: true });
+    }
     return markPosted(env.DB, p);
   }
   if (['approve', 'redo', 'skip', 'reopen', 'queue'].includes(action)) {
@@ -172,6 +179,7 @@ async function human(db, action, p) {
   if (action === 'approve') {
     const text = str(p.text, 3000);
     if (!text || !text.trim()) return Response.json({ ok: false, error: '返信文が空です' }, { status: 400 });
+    if (text.trim().length > 500) return Response.json({ ok: false, error: `BASEの返信は500文字までです（今は${text.trim().length}文字）` }, { status: 400 });
     const lint = lintReply(text);
     // 直したほうがよい点が残っていれば、一度だけ確認を求める（アプリで「このまま承認」を選ぶと force）
     if (!p.force && lint.some(x => x.level === 'ng')) {

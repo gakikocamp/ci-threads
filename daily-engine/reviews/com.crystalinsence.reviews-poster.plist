@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>Label</key>
+	<string>com.crystalinsence.reviews-poster</string>
+	<key>ProgramArguments</key>
+	<array>
+		<string>/bin/zsh</string>
+		<string>/Users/gaki/ci-daily-engine/reviews/run-poster.sh</string>
+	</array>
+	<!-- 10分おき。承認済みの返信があるときだけBASEに投稿する -->
+	<key>StartInterval</key>
+	<integer>600</integer>
+	<key>RunAtLoad</key>
+	<false/>
+	<key>StandardOutPath</key>
+	<string>/Users/gaki/ci-daily-engine/reviews/logs/poster.out.log</string>
+	<key>StandardErrorPath</key>
+	<string>/Users/gaki/ci-daily-engine/reviews/logs/poster.err.log</string>
+</dict>
+</plist>

@@ -33,3 +33,11 @@ CREATE TABLE IF NOT EXISTS base_review_runs (
   newly_replied INTEGER,
   note TEXT
 );
+
+-- BASEへの自動投稿（Mac Studio の post_replies.js）の結果。最新1件をアプリに出す（ログイン切れの警告など）
+CREATE TABLE IF NOT EXISTS base_review_poster (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  ts INTEGER,
+  ok INTEGER,
+  note TEXT
+);

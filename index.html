@@ -2157,6 +2157,7 @@ function renderXTab() {
 // ============================================================
 // 【BASE返信】BASEレビューへの返信を承認する
 // Mac Studio が毎日 7:40 にBASEの公開ページを読み、返信が無いレビューに下書きを作る（/api/reviews）
+// 自動返信（autopost）: 承認したものを Mac Studio が10分おきに見て、BASEに投稿する（post_replies.js）
 // 承認・書き直し依頼・見送りは管理トークン（X運用タブと同じ 'ci_x_admin'）で守る
 // BASEに返信が載ると、次の確認で自動的に「完了」になる
 // ============================================================
@@ -2248,6 +2249,8 @@ function renderRv() {
     <div class="rv-summary">最終確認 <b>${run ? rvFmtTs(run.ts) : 'まだ'}</b>（毎日 7:40）／BASEのレビュー ${total}件<br>
     承認待ち <b>${waiting.length}</b>件・BASEに貼る待ち <b>${approved.length}</b>件・下書きを準備中 ${pending.length}件</div>`;
   if (stale) h += `<div class="rv-stale">36時間以上、BASEの確認が届いていません。Mac Studio が止まっているかもしれません。</div>`;
+  const pl = d.poster_last;
+  if (d.autopost && pl && !pl.ok) h += `<div class="rv-stale">BASEへの自動返信が止まっています（${rvFmtTs(pl.ts)}）: ${esc(pl.note || '')}</div>`;
 
   if (approved.length) {
     h += `<div class="section-header">📋 BASEに貼って返信</div>`;
@@ -2278,7 +2281,7 @@ function rvDraftCard(r) {
     ${rvLintHtml(r.lint)}
     ${r.draft_note ? `<div class="rv-note">メモ: ${esc(r.draft_note)}</div>` : ''}
     <div class="rv-actions">
-      <button class="btn btn-approve" onclick="rvApprove('${r.key}', this)">承認してコピー</button>
+      <button class="btn btn-approve" onclick="rvApprove('${r.key}', this)">${rvState.data.autopost ? '承認してBASEに返信' : '承認してコピー'}</button>
       <button class="btn-sm btn-copy-reply" style="flex:1" onclick="rvRedo('${r.key}')">書き直しを頼む</button>
       <button class="btn-sm btn-del" onclick="rvSkip('${r.key}')">返信しない</button>
     </div>
@@ -2286,7 +2289,7 @@ function rvDraftCard(r) {
 }
 function rvApprovedCard(r, autopost) {
   const how = autopost
-    ? 'Mac Studio が次の実行でBASEに返信します。'
+    ? 'Mac Studio が10分ほどでBASEに返信します。載ると、ここから消えて「最近の完了」に移ります。'
     : '「BASEを開く」でレビュー一覧が開きます。このレビューの「返信する」に貼り付けて「返信を投稿する」を押してください。BASEに載ると、次の確認で自動的に完了になります。';
   return `<div class="card" id="rv-${r.key}">
     ${rvHead(r)}
@@ -2376,7 +2379,7 @@ async function rvApprove(key, btn) {
   if (!res || !res.ok) { if (res && res.error) showToast('❌ ' + res.error); return; }
   delete rvEdits[key];
   localStorage.setItem('ci_rv_edits', JSON.stringify(rvEdits));
-  showToast(rvState.data.autopost ? '承認しました' : '承認してコピーしました。BASEに貼ってください');
+  showToast(rvState.data.autopost ? '承認しました。10分ほどでBASEに載ります' : '承認してコピーしました。BASEに貼ってください');
   await refreshRv();
 }
 async function rvRedo(key) {
