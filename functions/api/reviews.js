@@ -195,8 +195,13 @@ async function human(db, action, p) {
   return Response.json({ ok: true, changed: res.reduce((a, r) => a + (r.meta.changes || 0), 0) });
 }
 
+// 承認待ちの下書きは、表示のたびに今のチェック規則で見直す（規則を足したら、既存の下書きにも効く）
 function parseLint(r) {
   if (r && typeof r.lint === 'string') { try { r.lint = JSON.parse(r.lint); } catch { r.lint = []; } }
+  if (r && r.status === 'draft' && r.draft) {
+    const caution = (r.lint || []).filter(x => x.level === 'caution');
+    r.lint = [...caution, ...lintReply(r.draft)];
+  }
   return r;
 }
 function str(v, max = 300) { return typeof v === 'string' ? v.slice(0, max) : null; }
